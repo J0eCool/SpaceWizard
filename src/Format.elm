@@ -11,7 +11,6 @@ int n =
         |> List.reverse
         |> String.fromList
 
-
 intersperseBy : Int -> a -> List a -> List a
 intersperseBy count item list =
     let aux curCount curList =
@@ -24,10 +23,8 @@ intersperseBy count item list =
                 x :: aux (c - 1) xs
     in aux count list
 
-
 float : Float -> String
 float = floatWithDigits 2
-
 
 floatWithDigits : Int -> Float -> String
 floatWithDigits digits n =
@@ -36,9 +33,10 @@ floatWithDigits digits n =
         remPart = n - toFloat intPart
         remInt = round <| remPart * toFloat (10^digits)
         remStr =
-            if remInt == 0
-                then ""
-                else "." ++
+            if remInt == 0 then
+                ""
+            else
+                "." ++
                     (toString remInt
                         |> String.toList
                         |> padToLength digits '0'
@@ -47,15 +45,15 @@ floatWithDigits digits n =
                     )
     in intStr ++ remStr
 
-
 dropWhile : (a -> Bool) -> List a -> List a
 dropWhile f list =
     case list of
         [] -> []
         (x :: xs) ->
-            if f x
-                then dropWhile f xs
-                else list
+            if f x then
+                dropWhile f xs
+            else
+                list
 
 trimFromEnd : a -> List a -> List a
 trimFromEnd x list =
@@ -63,7 +61,6 @@ trimFromEnd x list =
         |> List.reverse
         |> dropWhile ((==) x)
         |> List.reverse
-
 
 padToLength : Int -> a -> List a -> List a
 padToLength len x list =

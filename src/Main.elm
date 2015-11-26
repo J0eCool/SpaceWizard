@@ -8,6 +8,18 @@ import StartApp
 import String
 import Time exposing (inSeconds, fps)
 
+type alias Model =
+    { score : Int
+    , scorePerSecond : Float
+    , partialScore : Float
+    , scorePerClick : Int
+    }
+
+type Action
+    = ScoreClick
+    | UpgradeClick
+    | UpgradePerSecond
+    | TimeDelta Float
 
 main : Signal Html.Html
 main =
@@ -16,13 +28,6 @@ main =
 app : StartApp.App Model
 app =
     StartApp.start { init = init, view = view, update = update, inputs = inputs }
-
-type alias Model =
-    { score : Int
-    , scorePerSecond : Float
-    , partialScore : Float
-    , scorePerClick : Int
-    }
 
 init : (Model, Effects.Effects Action)
 init =
@@ -77,14 +82,6 @@ upgradeClickCost model = floor <| (toFloat model.scorePerClick) ^ 1.5 * 10
 upgradePerSecondCost : Model -> Int
 upgradePerSecondCost model = floor <| (model.scorePerSecond + 1) ^ 1.25 * 5
 
-
-type Action
-    = ScoreClick
-    | UpgradeClick
-    | UpgradePerSecond
-    | TimeDelta Float
-
-
 update : Action -> Model -> (Model, Effects.Effects a)
 update action model = (updateModel action model, Effects.none)
 
@@ -100,23 +97,28 @@ updateModel action model =
 
 updateScoreClick : Model -> Model
 updateScoreClick model =
-    { model | score = model.score + model.scorePerClick }
+    { model
+        | score = model.score + model.scorePerClick }
 
 updateUpgradeClick : Model -> Model
 updateUpgradeClick model =
     let cost = upgradeClickCost model
     in
-        if model.score < cost
-        then model
-        else { model | score = model.score - cost, scorePerClick = model.scorePerClick + 1 }
+        if model.score < cost then
+            model
+        else
+            { model
+            | score = model.score - cost
+            , scorePerClick = model.scorePerClick + 1
+            }
 
 updateUpgradePerSecond : Model -> Model
 updateUpgradePerSecond model =
     let cost = upgradePerSecondCost model
-    in
-        if model.score < cost
-        then model
-        else { model
+    in if model.score < cost then
+            model
+        else
+            { model
             | score = model.score - cost
             , scorePerSecond = model.scorePerSecond + 0.25
             }
