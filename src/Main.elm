@@ -8,10 +8,11 @@ import String
 import Time exposing (inSeconds, fps)
 
 import Battle
+import Currency
 import Format
 
 type alias Model =
-    { score : Int
+    { inventory : Currency.Inventory
     , scorePerSecond : Float
     , partialScore : Float
     , scorePerClick : Int
@@ -39,7 +40,7 @@ app =
 
 init : (Model, Effects.Effects Action)
 init =
-    ( { score = 0
+    ( { inventory = Currency.emptyInventory
       , scorePerSecond = 0
       , partialScore = 0
       , scorePerClick = 1
@@ -64,8 +65,13 @@ view address model =
 viewScore : Signal.Address Action -> Model -> Html.Html
 viewScore address model =
     div []
-        [ h3 [] [text "Score"]
-        , div [] [text <| Format.int model.score ++ " (+" ++ Format.float model.scorePerSecond ++ "/s)"]
+        [ h3 [] [text "Inventory"]
+        , div [] [text
+            <| Format.int (Currency.get Currency.Gold model.inventory)
+            ++ " (+"
+            ++ Format.float model.scorePerSecond
+            ++ "/s)"
+            ]
         , viewScoreClickButton address model
         ]
 
@@ -114,40 +120,45 @@ updateModel action model =
                 |> updateScoreTime dT
                 |> applyRewards battleRewards
 
-applyRewards : List Int -> Model -> Model
+applyRewards : List Currency.Reward -> Model -> Model
 applyRewards rewards model =
     { model
-        | score = model.score + List.sum rewards
+        | inventory = Currency.applyRewards rewards model.inventory
         }
 
 updateScoreClick : Model -> Model
 updateScoreClick model =
     { model
-        | score = model.score + model.scorePerClick
+        | inventory = Currency.gain Currency.Gold model.scorePerClick model.inventory
         }
 
 updateUpgradeClick : Model -> Model
 updateUpgradeClick model =
     let cost = upgradeClickCost model
-    in
-        if model.score < cost then
-            model
-        else
-            { model
-            | score = model.score - cost
-            , scorePerClick = model.scorePerClick + 1
-            }
+        (inventory', didBuy) =
+            Currency.spend Currency.Gold cost model.inventory
+    in { model
+        | inventory = inventory'
+        , scorePerClick =
+            if didBuy then
+                model.scorePerClick + 1
+            else
+                model.scorePerClick
+        }
 
 updateUpgradePerSecond : Model -> Model
 updateUpgradePerSecond model =
     let cost = upgradePerSecondCost model
-    in if model.score < cost then
-            model
-        else
-            { model
-            | score = model.score - cost
-            , scorePerSecond = model.scorePerSecond + 0.25
-            }
+        (inventory', didBuy) =
+            Currency.spend Currency.Gold cost model.inventory
+    in { model
+        | inventory = inventory'
+        , scorePerSecond =
+            if didBuy then
+                model.scorePerSecond + 0.25
+            else
+                model.scorePerSecond
+        }
 
 updateScoreTime : Float -> Model -> Model
 updateScoreTime dT model =
@@ -155,5 +166,5 @@ updateScoreTime dT model =
         delta = floor <| partial
     in { model
         | partialScore = partial - toFloat delta
-        , score = model.score + delta
+        , inventory = Currency.gain Currency.Gold delta model.inventory
         }

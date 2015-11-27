@@ -2,6 +2,7 @@ module Battle where
 
 import Html exposing (div, h3, text)
 
+import Currency
 import Format
 
 type alias Model =
@@ -23,7 +24,7 @@ init =
     , goldReward = 8
     }
 
-update : Float -> Model -> (Model, List Int)
+update : Float -> Model -> (Model, List Currency.Reward)
 update dT model =
     let updatedTimer =
             model.attackTimer + dT
@@ -51,7 +52,7 @@ update dT model =
                     updatedHealth
             }
         , if didDie then
-               [model.goldReward]
+               [(Currency.Gold, model.goldReward)]
             else
                 []
         )
