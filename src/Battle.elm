@@ -23,7 +23,7 @@ init =
     , goldReward = 8
     }
 
-update : Float -> Model -> Model
+update : Float -> Model -> (Model, List Int)
 update dT model =
     let updatedTimer =
             model.attackTimer + dT
@@ -38,18 +38,24 @@ update dT model =
             model.health - numAttacks * model.attackDamage
         didDie =
             updatedHealth <= 0
-    in { model
-        | attackTimer =
-            if numAttacks >= maxNumAttacks then
-                0
+    in ( { model
+            | attackTimer =
+                if numAttacks >= maxNumAttacks then
+                    0
+                else
+                    updatedTimer - toFloat numAttacks * timeToAttack
+            , health =
+                if didDie then
+                    model.maxHealth
+                else
+                    updatedHealth
+            }
+        , if didDie then
+               [model.goldReward]
             else
-                updatedTimer - toFloat numAttacks * timeToAttack
-        , health =
-            if didDie then
-                model.maxHealth
-            else
-                updatedHealth
-        }
+                []
+        )
+
 
 view : Model -> Html.Html
 view model =

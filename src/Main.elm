@@ -107,14 +107,24 @@ updateModel action model =
         UpgradePerSecond -> updateUpgradePerSecond model
         TimeDelta delta ->
             let dT = inSeconds delta
-            in updateScoreTime dT { model
-                | battle = Battle.update dT model.battle
+                (battle', battleRewards) = Battle.update dT model.battle
+            in { model
+                | battle = battle'
                 }
+                |> updateScoreTime dT
+                |> applyRewards battleRewards
+
+applyRewards : List Int -> Model -> Model
+applyRewards rewards model =
+    { model
+        | score = model.score + List.sum rewards
+        }
 
 updateScoreClick : Model -> Model
 updateScoreClick model =
     { model
-        | score = model.score + model.scorePerClick }
+        | score = model.score + model.scorePerClick
+        }
 
 updateUpgradeClick : Model -> Model
 updateUpgradeClick model =
