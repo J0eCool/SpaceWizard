@@ -1,7 +1,8 @@
-module Format (int, float) where
+module Format where
 
 import String
 
+import Currency
 import ListUtil
 
 int : Int -> String
@@ -34,3 +35,7 @@ floatWithDigits digits n =
                         |> String.fromList
                     )
     in intStr ++ remStr
+
+currency : Currency.Bundle -> String
+currency (t, amount) =
+    int amount ++ " " ++ toString t

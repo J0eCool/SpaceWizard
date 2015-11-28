@@ -14,6 +14,10 @@ type alias Model =
     , goldReward : Int
     }
 
+type Action
+    = Tick Float
+    | Upgrade
+
 init : Model
 init =
     { health = 100
@@ -24,8 +28,16 @@ init =
     , goldReward = 8
     }
 
-update : Float -> Model -> (Model, List Currency.Bundle)
-update dT model =
+update : Action -> Model -> (Model, List Currency.Bundle)
+update action model =
+    case action of
+        Tick dT ->
+            updateTick dT model
+        Upgrade ->
+            (model, [])
+
+updateTick : Float -> Model -> (Model, List Currency.Bundle)
+updateTick dT model =
     let updatedTimer =
             model.attackTimer + dT
         timeToAttack =

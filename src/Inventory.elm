@@ -41,27 +41,27 @@ get t model =
     Dict.get (Currency.toEnum t) model
         |> Maybe.withDefault 0
 
-set : Currency.Type -> Int -> Model -> Model
-set t amount model =
+set : Currency.Bundle -> Model -> Model
+set (t, amount) model =
     Dict.update (Currency.toEnum t) (\_ -> Just amount) model
 
-gain : Currency.Type -> Int -> Model -> Model
-gain t amount model =
+gain : Currency.Bundle -> Model -> Model
+gain (t, amount) model =
     let cur = get t model
-    in set t (cur + amount) model
+    in set (t, cur + amount) model
 
-spend : Currency.Type -> Int -> Model -> Result String Model
-spend t cost model =
+spend : Currency.Bundle -> Model -> Result String Model
+spend (t, cost) model =
     let curAmt = get t model
         canAfford = curAmt >= cost
     in if canAfford then
-            Ok <| set t (curAmt - cost) model
+            Ok <| set (t, curAmt - cost) model
         else
             Err <| "Not enough " ++ toString t
 
 applyReward : Currency.Bundle -> Model -> Model
-applyReward (t, amount) =
-    gain t amount
+applyReward reward =
+    gain reward
 
 applyRewards : List Currency.Bundle -> Model -> Model
 applyRewards rewards model =
