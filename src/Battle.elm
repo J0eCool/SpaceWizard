@@ -24,7 +24,7 @@ init =
     , goldReward = 8
     }
 
-update : Float -> Model -> (Model, List Currency.Reward)
+update : Float -> Model -> (Model, List Currency.Bundle)
 update dT model =
     let updatedTimer =
             model.attackTimer + dT

@@ -2,26 +2,16 @@ module Format (int, float) where
 
 import String
 
+import ListUtil
+
 int : Int -> String
 int n =
     toString n
         |> String.toList
         |> List.reverse
-        |> intersperseBy 3 ','
+        |> ListUtil.intersperseBy 3 ','
         |> List.reverse
         |> String.fromList
-
-intersperseBy : Int -> a -> List a -> List a
-intersperseBy count item list =
-    let aux curCount curList =
-        case (curCount, curList) of
-            (_, []) ->
-                []
-            (0, xs) ->
-                item :: aux count xs
-            (c, x :: xs) ->
-                x :: aux (c - 1) xs
-    in aux count list
 
 float : Float -> String
 float = floatWithDigits 2
@@ -39,31 +29,8 @@ floatWithDigits digits n =
                 "." ++
                     (toString remInt
                         |> String.toList
-                        |> padToLength digits '0'
-                        |> trimFromEnd '0'
+                        |> ListUtil.padToLength digits '0'
+                        |> ListUtil.trimFromEnd '0'
                         |> String.fromList
                     )
     in intStr ++ remStr
-
-dropWhile : (a -> Bool) -> List a -> List a
-dropWhile f list =
-    case list of
-        [] -> []
-        (x :: xs) ->
-            if f x then
-                dropWhile f xs
-            else
-                list
-
-trimFromEnd : a -> List a -> List a
-trimFromEnd x list =
-    list
-        |> List.reverse
-        |> dropWhile ((==) x)
-        |> List.reverse
-
-padToLength : Int -> a -> List a -> List a
-padToLength len x list =
-    let curLen = List.length list
-        padding = List.repeat (len - curLen) x
-    in padding ++ list
