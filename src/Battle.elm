@@ -1,6 +1,7 @@
 module Battle where
 
-import Html exposing (div, h3, text)
+import Html exposing (div, h3, text, span, button)
+import Html.Events exposing (onClick)
 
 import Currency
 import Format
@@ -30,11 +31,12 @@ init =
 
 update : Action -> Model -> (Model, List Currency.Bundle)
 update action model =
-    case action of
+    let no m = (m, [])
+    in case action of
         Tick dT ->
             updateTick dT model
         Upgrade ->
-            (model, [])
+            no { model | attackDamage = model.attackDamage + 1 }
 
 updateTick : Float -> Model -> (Model, List Currency.Bundle)
 updateTick dT model =
@@ -70,9 +72,25 @@ updateTick dT model =
         )
 
 
-view : Model -> Html.Html
-view model =
+view : Signal.Address (Currency.Bundle, Action) -> Model -> Html.Html
+view address model =
     div []
         [ h3 [] [text "Battle"]
         , div [] [text <| "Health: " ++ Format.int model.health]
+        , viewShop address model
+        ]
+
+viewShop : Signal.Address (Currency.Bundle, Action) -> Model -> Html.Html
+viewShop address model =
+    let cost =
+            (Currency.Gold, (model.attackDamage - 9) * 4 + (model.attackDamage - 10) ^ 2)
+    in div []
+        [ span [] [text
+            <| "Upgrade damage ("
+            ++ toString model.attackDamage
+            ++ ") :"
+            ]
+        , button
+            [onClick address (cost, Upgrade)]
+            [text <| Format.currency cost]
         ]

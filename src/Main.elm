@@ -25,6 +25,7 @@ type Action
     | UpgradeClick
     | UpgradePerSecond
     | TryPurchase Currency.Bundle Action
+    | BattleAction Battle.Action
     | Tick Float
 
 main : Signal Html.Html
@@ -58,9 +59,13 @@ inputs =
 
 view : Signal.Address Action -> Model -> Html.Html
 view address model =
-    div []
+    let battleForwarder (cost, action) =
+            TryPurchase cost <| BattleAction action
+        battleShopAddress =
+            Signal.forwardTo address battleForwarder
+    in div []
         [ Inventory.view model.inventory
-        , Battle.view model.battle
+        , Battle.view battleShopAddress model.battle
         , viewShop address model
         ]
 
@@ -132,12 +137,15 @@ update action model =
         UpgradePerSecond -> updateUpgradePerSecond model
         Tick delta ->
             let dT = inSeconds delta
-                (battle', battleRewards) = Battle.update (Battle.Tick dT) model.battle
+                (model', _) = update (BattleAction <| Battle.Tick dT) model
+            in model'
+                |> updateScoreTime dT
+        BattleAction bAction ->
+            let (battle', battleRewards) = Battle.update bAction model.battle
             in { model
                 | battle = battle'
                 , inventory = Inventory.update battleRewards model.inventory
                 }
-                |> updateScoreTime dT
     , Effects.none)
 
 updateScoreClick : Model -> Model
