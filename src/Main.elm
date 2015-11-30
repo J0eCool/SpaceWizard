@@ -14,17 +14,11 @@ import Inventory
 
 type alias Model =
     { inventory : Inventory.Model
-    , scorePerSecond : Float
-    , partialScore : Float
-    , scorePerClick : Int
     , battle : Battle.Model
     }
 
 type Action
-    = ScoreClick
-    | UpgradeClick
-    | UpgradePerSecond
-    | TryPurchase Currency.Bundle Action
+    = TryPurchase Currency.Bundle Action
     | BattleAction Battle.Action
     | Tick Float
 
@@ -44,9 +38,6 @@ app =
 init : (Model, Effects.Effects Action)
 init =
     ( { inventory = Inventory.init
-      , scorePerSecond = 0
-      , partialScore = 0
-      , scorePerClick = 1
       , battle = Battle.init
       }
     , Effects.none
@@ -66,63 +57,11 @@ view address model =
     in div []
         [ Inventory.view model.inventory
         , Battle.view battleShopAddress model.battle
-        , viewShop address model
         ]
-
-viewScore : Signal.Address Action -> Model -> Html.Html
-viewScore address model =
-    div []
-        [ h3 [] [text "Inventory"]
-        , div [] [text
-            <| Format.int (Inventory.get Currency.Gold model.inventory)
-            ++ " (+"
-            ++ Format.float model.scorePerSecond
-            ++ "/s)"
-            ]
-        , viewScoreClickButton address model
-        ]
-
-viewScoreClickButton : Signal.Address Action -> Model -> Html.Html
-viewScoreClickButton address model =
-    let clickButtonText = "Click (+" ++ Format.int model.scorePerClick ++ ")"
-    in button [onClick address ScoreClick] [text clickButtonText]
-
-viewShop : Signal.Address Action -> Model -> Html.Html
-viewShop address model =
-    div []
-        [ h3 [] [text "Shop"]
-        , ul []
-            [ li []
-                [ span [] [text "Upgrade click power:"]
-                , button
-                    [onClick address
-                        <| TryPurchase (upgradeClickCost model) UpgradeClick]
-                    [text <| Format.currency <| upgradeClickCost model]
-                ]
-            , li []
-                [ span [] [text "Upgrade score per second:"]
-                , button
-                    [onClick address
-                        <| TryPurchase (upgradePerSecondCost model) UpgradePerSecond]
-                    [text <| Format.currency <| upgradePerSecondCost model]
-                ]
-            ]
-        ]
-
-upgradeClickCost : Model -> Currency.Bundle
-upgradeClickCost model =
-    let cost = floor <| (toFloat model.scorePerClick) ^ 1.5 * 10
-    in (Currency.Gold, cost)
-
-upgradePerSecondCost : Model -> Currency.Bundle
-upgradePerSecondCost model =
-    let cost = floor <| (model.scorePerSecond + 1) ^ 1.25 * 5
-    in (Currency.Gold, cost)
 
 update : Action -> Model -> (Model, Effects.Effects a)
 update action model =
     ( case action of
-        ScoreClick -> updateScoreClick model
         TryPurchase cost successfulAction ->
             let result =
                 Inventory.spend cost model.inventory
@@ -133,13 +72,11 @@ update action model =
                         |> fst
                 Err _ ->
                     model
-        UpgradeClick -> updateUpgradeClick model
-        UpgradePerSecond -> updateUpgradePerSecond model
         Tick delta ->
             let dT = inSeconds delta
+                updates = [BattleAction << Battle.Tick]
                 (model', _) = update (BattleAction <| Battle.Tick dT) model
             in model'
-                |> updateScoreTime dT
         BattleAction bAction ->
             let (battle', battleRewards) = Battle.update bAction model.battle
             in { model
@@ -147,26 +84,3 @@ update action model =
                 , inventory = Inventory.update battleRewards model.inventory
                 }
     , Effects.none)
-
-updateScoreClick : Model -> Model
-updateScoreClick model =
-    { model
-        | inventory = Inventory.gain (Currency.Gold, model.scorePerClick) model.inventory
-        }
-
-updateUpgradeClick : Model -> Model
-updateUpgradeClick model =
-    { model | scorePerClick = model.scorePerClick + 1 }
-
-updateUpgradePerSecond : Model -> Model
-updateUpgradePerSecond model =
-    { model | scorePerSecond = model.scorePerSecond + 0.25 }
-
-updateScoreTime : Float -> Model -> Model
-updateScoreTime dT model =
-    let partial = model.partialScore + model.scorePerSecond * dT
-        delta = floor <| partial
-    in { model
-        | partialScore = partial - toFloat delta
-        , inventory = Inventory.gain (Currency.Gold, delta) model.inventory
-        }
