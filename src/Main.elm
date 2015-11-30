@@ -8,6 +8,7 @@ import String
 import Time exposing (inSeconds, fps)
 
 import Battle
+import BattleStats
 import Currency
 import Format
 import Inventory
@@ -15,11 +16,13 @@ import Inventory
 type alias Model =
     { inventory : Inventory.Model
     , battle : Battle.Model
+    , stats : BattleStats.Model
     }
 
 type Action
-    = TryPurchase Currency.Bundle Action
+    = TryPurchase (Currency.Bundle, Action)
     | BattleAction Battle.Action
+    | StatsAction BattleStats.Action
     | Tick Float
 
 main : Signal Html.Html
@@ -31,7 +34,7 @@ app =
     StartApp.start
         { init = init
         , view = view
-        , update = update
+        , update = \a m -> (update a m, Effects.none)
         , inputs = inputs
         }
 
@@ -39,6 +42,7 @@ init : (Model, Effects.Effects Action)
 init =
     ( { inventory = Inventory.init
       , battle = Battle.init
+      , stats = BattleStats.init
       }
     , Effects.none
     )
@@ -51,34 +55,35 @@ inputs =
 view : Signal.Address Action -> Model -> Html.Html
 view address model =
     let forward actionType (cost, action) =
-            TryPurchase cost <| actionType action
+            TryPurchase (cost, actionType action)
         shopAddress =
-            Signal.forwardTo address (forward BattleAction)
+            Signal.forwardTo address (forward StatsAction)
     in div []
         [ Inventory.view model.inventory
-        , Battle.view shopAddress model.battle
+        , Battle.view model.battle
+        , BattleStats.view shopAddress model.stats
         ]
 
-update : Action -> Model -> (Model, Effects.Effects a)
+update : Action -> Model -> Model
 update action model =
-    ( case action of
-        TryPurchase cost successfulAction ->
+    case action of
+        TryPurchase (cost, successfulAction) ->
             let result =
                 Inventory.spend cost model.inventory
             in case result of
                 Ok inventory' ->
                     { model | inventory = inventory' }
                         |> update successfulAction
-                        |> fst
                 Err _ ->
                     model
         Tick delta ->
             let dT = inSeconds delta
             in update (BattleAction <| Battle.Tick dT) model
         BattleAction bAction ->
-            let (battle', battleRewards) = Battle.update bAction model.battle
+            let (battle', battleRewards) = Battle.update bAction model.stats model.battle
             in { model
                 | battle = battle'
                 , inventory = Inventory.update battleRewards model.inventory
                 }
-    , Effects.none)
+        StatsAction sAction ->
+            { model | stats = BattleStats.update sAction model.stats }

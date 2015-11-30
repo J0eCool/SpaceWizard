@@ -1,8 +1,9 @@
 module Battle where
 
-import Html exposing (div, h3, text, span, button)
+import Html exposing (div, h3, text)
 import Html.Events exposing (onClick)
 
+import BattleStats
 import Currency
 import Format
 
@@ -10,47 +11,39 @@ type alias Model =
     { health : Int
     , maxHealth : Int
     , attackTimer : Float
-    , attackSpeed : Float
-    , attackDamage : Int
     , goldReward : Int
     }
 
 type Action
     = Tick Float
-    | Upgrade
 
 init : Model
 init =
     { health = 100
     , maxHealth = 100
     , attackTimer = 0
-    , attackSpeed = 1.2
-    , attackDamage = 10
     , goldReward = 8
     }
 
-update : Action -> Model -> (Model, List Currency.Bundle)
-update action model =
-    let no m = (m, [])
-    in case action of
+update : Action -> BattleStats.Model -> Model -> (Model, List Currency.Bundle)
+update action stats model =
+    case action of
         Tick dT ->
-            updateTick dT model
-        Upgrade ->
-            no { model | attackDamage = model.attackDamage + 1 }
+            updateTick dT stats model
 
-updateTick : Float -> Model -> (Model, List Currency.Bundle)
-updateTick dT model =
+updateTick : Float -> BattleStats.Model -> Model -> (Model, List Currency.Bundle)
+updateTick dT stats model =
     let updatedTimer =
             model.attackTimer + dT
         timeToAttack =
-            1 / model.attackSpeed
+            1 / stats.attackSpeed
         maxNumAttacks = 3
         numAttacks =
             updatedTimer / timeToAttack
                 |> floor
                 |> min maxNumAttacks
         updatedHealth = 
-            model.health - numAttacks * model.attackDamage
+            model.health - numAttacks * stats.attackDamage
         didDie =
             updatedHealth <= 0
     in ( { model
@@ -71,26 +64,9 @@ updateTick dT model =
                 []
         )
 
-
-view : Signal.Address (Currency.Bundle, Action) -> Model -> Html.Html
-view address model =
+view : Model -> Html.Html
+view model =
     div []
         [ h3 [] [text "Battle"]
         , div [] [text <| "Health: " ++ Format.int model.health]
-        , viewShop address model
-        ]
-
-viewShop : Signal.Address (Currency.Bundle, Action) -> Model -> Html.Html
-viewShop address model =
-    let cost =
-            (Currency.Gold, (model.attackDamage - 9) * 4 + (model.attackDamage - 10) ^ 2)
-    in div []
-        [ span [] [text
-            <| "Upgrade damage ("
-            ++ toString model.attackDamage
-            ++ ") :"
-            ]
-        , button
-            [onClick address (cost, Upgrade)]
-            [text <| Format.currency cost]
         ]
