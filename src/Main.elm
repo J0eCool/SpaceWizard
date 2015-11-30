@@ -74,9 +74,7 @@ update action model =
                     model
         Tick delta ->
             let dT = inSeconds delta
-                updates = [BattleAction << Battle.Tick]
-                (model', _) = update (BattleAction <| Battle.Tick dT) model
-            in model'
+            in update (BattleAction <| Battle.Tick dT) model
         BattleAction bAction ->
             let (battle', battleRewards) = Battle.update bAction model.battle
             in { model
