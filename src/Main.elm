@@ -50,13 +50,13 @@ inputs =
 
 view : Signal.Address Action -> Model -> Html.Html
 view address model =
-    let battleForwarder (cost, action) =
-            TryPurchase cost <| BattleAction action
-        battleShopAddress =
-            Signal.forwardTo address battleForwarder
+    let forward actionType (cost, action) =
+            TryPurchase cost <| actionType action
+        shopAddress =
+            Signal.forwardTo address (forward BattleAction)
     in div []
         [ Inventory.view model.inventory
-        , Battle.view battleShopAddress model.battle
+        , Battle.view shopAddress model.battle
         ]
 
 update : Action -> Model -> (Model, Effects.Effects a)

@@ -65,8 +65,8 @@ updateTick dT model =
                 else
                     updatedHealth
             }
-        , if didDie then
-               [(Currency.Gold, model.goldReward)]
+        ,   if didDie then
+                [(Currency.Gold, model.goldReward)]
             else
                 []
         )
