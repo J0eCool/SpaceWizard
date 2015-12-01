@@ -7,60 +7,110 @@ import Currency
 import Format
 
 type alias Model =
-    { strength : Int
-    , speed : Int
+    { strength : Stat
+    , speed : Stat
+    }
+
+type Growth
+    = LinearGrowth Float Float
+    | PowerGrowth Float Float Float
+
+type alias Stat =
+    { level : Int
+    , growth : Growth
+    , costGrowth : Growth
     }
 
 type Action
     = UpgradeStrength
     | UpgradeSpeed
 
-attackDamage : Model -> Int
-attackDamage model =
-    (model.strength - 1) + 10
-
-attackSpeed : Model -> Float
-attackSpeed model =
-    toFloat (model.speed - 1) * 0.1 + 1.2
-
 init : Model
 init = 
-    { strength = 1
-    , speed = 1
+    { strength =
+        { level = 1
+        , growth = LinearGrowth 10 1
+        , costGrowth = PowerGrowth 4 1 2
+        }
+    , speed =
+        { level = 1
+        , growth = LinearGrowth 1.2 0.1
+        , costGrowth = PowerGrowth 7 5 2
+        }
     }
 
 update : Action -> Model -> Model
 update action model =
     case action of
         UpgradeStrength ->
-            { model | strength = model.strength + 1 }
+            { model | strength = levelUp model.strength }
         UpgradeSpeed ->
-            { model | speed = model.speed + 1 }
+            { model | speed = levelUp model.speed }
 
 view : Signal.Address (Currency.Bundle, Action) -> Model -> Html.Html
 view address model =
-    let cost =
-            ( Currency.Gold
-            , model.strength * 4 + (model.strength - 1) ^ 2
-            )
-        speedCost =
-            ( Currency.Gold
-            , model.speed * 7 + ((model.speed - 1) ^ 2) * 5
-            )
-    in div []
+    div []
         [ h3 [] [text "Stats"]
-        , ul []
-            [ li []
-                [ span [] [text <| "Strength: " ++ Format.int model.strength]
-                , button
-                    [onClick address (cost, UpgradeStrength)]
-                    [text <| "+1 (" ++ Format.currency cost ++ ")"]
-                ]
-            , li []
-                [ span [] [text <| "Speed: " ++ Format.int model.speed]
-                , button
-                    [onClick address (speedCost, UpgradeSpeed)]
-                    [text <| "+1 (" ++ Format.currency speedCost ++ ")"]
-                ]
-            ]
+        , viewBaseStats address model
+        , viewDerivedStats model
         ]
+
+viewBaseStats : Signal.Address (Currency.Bundle, Action) -> Model -> Html.Html
+viewBaseStats address model =
+    let viewBaseStat : (String, Stat, Action) -> Html.Html
+        viewBaseStat (title, stat, action) =
+            let curCost = cost stat
+            in li []
+                [ span []
+                    [ text
+                        <| title ++ ": "
+                        ++ Format.int stat.level
+                    ]
+                , button
+                    [onClick address (curCost, action)]
+                    [ text
+                        <| "+1 ("
+                        ++ Format.currency curCost
+                        ++ ")"
+                    ]
+                ]
+        items = List.map viewBaseStat
+            [ ("Strength", model.strength, UpgradeStrength)
+            , ("Speed", model.speed, UpgradeSpeed)
+            ]
+    in ul [] items
+
+viewDerivedStats : Model -> Html.Html
+viewDerivedStats model =
+    div [] []
+
+levelUp : Stat -> Stat
+levelUp stat =
+    { stat | level = stat.level + 1 }
+
+value : Stat -> Float
+value stat =
+    growthValue stat.level stat.growth
+
+cost : Stat -> Currency.Bundle
+cost stat =
+    ( Currency.Gold
+    , floor <| growthValue stat.level stat.costGrowth
+    )
+
+growthValue : Int -> Growth -> Float
+growthValue level growth =
+    let l = toFloat level
+    in case growth of
+        LinearGrowth base slope ->
+            slope * (l - 1) + base
+        PowerGrowth lin powFac pow ->
+            lin * l + powFac * (l - 1) ^ pow
+
+attackDamage : Model -> Int
+attackDamage model =
+    round <| value model.strength
+
+attackSpeed : Model -> Float
+attackSpeed model =
+    value model.speed

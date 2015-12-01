@@ -19,8 +19,8 @@ type Action
 
 init : Model
 init =
-    { health = 100
-    , maxHealth = 100
+    { health = 50
+    , maxHealth = 50
     , attackTimer = 0
     , goldReward = 8
     }
