@@ -3,7 +3,7 @@ module Battle where
 import Html exposing (div, h3, text)
 import Html.Events exposing (onClick)
 
-import BattleStats
+import BattleStats exposing (attackDamage, attackSpeed)
 import Currency
 import Format
 
@@ -36,14 +36,14 @@ updateTick dT stats model =
     let updatedTimer =
             model.attackTimer + dT
         timeToAttack =
-            1 / stats.attackSpeed
+            1 / attackSpeed stats
         maxNumAttacks = 3
         numAttacks =
             updatedTimer / timeToAttack
                 |> floor
                 |> min maxNumAttacks
         updatedHealth = 
-            model.health - numAttacks * stats.attackDamage
+            model.health - numAttacks * attackDamage stats
         didDie =
             updatedHealth <= 0
     in ( { model

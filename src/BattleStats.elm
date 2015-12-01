@@ -7,52 +7,60 @@ import Currency
 import Format
 
 type alias Model =
-    { attackSpeed : Float
-    , attackDamage : Int
+    { strength : Int
+    , speed : Int
     }
 
 type Action
-    = UpgradeDamage
+    = UpgradeStrength
     | UpgradeSpeed
+
+attackDamage : Model -> Int
+attackDamage model =
+    (model.strength - 1) + 10
+
+attackSpeed : Model -> Float
+attackSpeed model =
+    toFloat (model.speed - 1) * 0.1 + 1.2
 
 init : Model
 init = 
-    { attackSpeed = 1.2
-    , attackDamage = 10
+    { strength = 1
+    , speed = 1
     }
 
 update : Action -> Model -> Model
 update action model =
     case action of
-        UpgradeDamage ->
-            { model | attackDamage = model.attackDamage + 1 }
+        UpgradeStrength ->
+            { model | strength = model.strength + 1 }
         UpgradeSpeed ->
-            { model | attackSpeed = model.attackSpeed + 0.1 }
+            { model | speed = model.speed + 1 }
 
 view : Signal.Address (Currency.Bundle, Action) -> Model -> Html.Html
 view address model =
     let cost =
             ( Currency.Gold
-            , (model.attackDamage - 9) * 4 + (model.attackDamage - 10) ^ 2
+            , model.strength * 4 + (model.strength - 1) ^ 2
             )
         speedCost =
             ( Currency.Gold
-            , floor <| (model.attackSpeed * 10 - 11) * 7 + ((model.attackSpeed * 10 - 12) ^ 2) * 5
+            , model.speed * 7 + ((model.speed - 1) ^ 2) * 5
             )
     in div []
         [ h3 [] [text "Stats"]
         , ul []
             [ li []
-                [ span [] [text <| "Damage: " ++ Format.int model.attackDamage]
+                [ span [] [text <| "Strength: " ++ Format.int model.strength]
                 , button
-                    [onClick address (cost, UpgradeDamage)]
+                    [onClick address (cost, UpgradeStrength)]
                     [text <| "+1 (" ++ Format.currency cost ++ ")"]
                 ]
             , li []
-                [ span [] [text <| "Attack Speed: " ++ Format.float model.attackSpeed]
+                [ span [] [text <| "Speed: " ++ Format.int model.speed]
                 , button
                     [onClick address (speedCost, UpgradeSpeed)]
-                    [text <| "+0.1 (" ++ Format.currency speedCost ++ ")"]
+                    [text <| "+1 (" ++ Format.currency speedCost ++ ")"]
                 ]
             ]
         ]
