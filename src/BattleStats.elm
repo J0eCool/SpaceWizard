@@ -9,6 +9,7 @@ import Format
 type alias Model =
     { strength : Stat
     , speed : Stat
+    , luck : Stat
     }
 
 type Growth
@@ -24,6 +25,7 @@ type alias Stat =
 type Action
     = UpgradeStrength
     | UpgradeSpeed
+    | UpgradeLuck
 
 init : Model
 init = 
@@ -37,6 +39,11 @@ init =
         , growth = LinearGrowth 1.2 0.1
         , costGrowth = PowerGrowth 7 5 2
         }
+    , luck =
+        { level = 1
+        , growth = LinearGrowth 0 15
+        , costGrowth = PowerGrowth 50 10 2
+        }
     }
 
 update : Action -> Model -> Model
@@ -46,6 +53,8 @@ update action model =
             { model | strength = levelUp model.strength }
         UpgradeSpeed ->
             { model | speed = levelUp model.speed }
+        UpgradeLuck ->
+            { model | luck = levelUp model.luck }
 
 view : Signal.Address (Currency.Bundle, Action) -> Model -> Html.Html
 view address model =
@@ -77,6 +86,7 @@ viewBaseStats address model =
         items = List.map viewStat
             [ ("Strength", .strength, UpgradeStrength)
             , ("Speed", .speed, UpgradeSpeed)
+            , ("Luck", .luck, UpgradeLuck)
             ]
     in ul [] items
 
@@ -91,6 +101,7 @@ viewDerivedStats model =
         items = List.map viewStat
             [ ("Attack Damage", i << attackDamage)
             , ("Attack Speed", f << attackSpeed)
+            , ("Gold Bonus %", f << goldBonus)
             ]
     in ul [] items
 
@@ -124,3 +135,11 @@ attackDamage model =
 attackSpeed : Model -> Float
 attackSpeed model =
     value model.speed
+
+goldBonus : Model -> Float
+goldBonus model =
+    value model.luck
+
+goldBonusMultiplier : Model -> Float
+goldBonusMultiplier model =
+    1 + goldBonus model / 100

@@ -60,7 +60,7 @@ view address model =
             Signal.forwardTo address (forward StatsAction)
     in div []
         [ Inventory.view model.inventory
-        , Battle.view model.battle
+        , Battle.view model.stats model.battle
         , BattleStats.view shopAddress model.stats
         ]
 
