@@ -57,9 +57,9 @@ view address model =
 
 viewBaseStats : Signal.Address (Currency.Bundle, Action) -> Model -> Html.Html
 viewBaseStats address model =
-    let viewBaseStat : (String, Stat, Action) -> Html.Html
-        viewBaseStat (title, stat, action) =
-            let curCost = cost stat
+    let viewStat (title, field, action) =
+            let stat = field model
+                curCost = cost stat
             in li []
                 [ span []
                     [ text
@@ -74,15 +74,25 @@ viewBaseStats address model =
                         ++ ")"
                     ]
                 ]
-        items = List.map viewBaseStat
-            [ ("Strength", model.strength, UpgradeStrength)
-            , ("Speed", model.speed, UpgradeSpeed)
+        items = List.map viewStat
+            [ ("Strength", .strength, UpgradeStrength)
+            , ("Speed", .speed, UpgradeSpeed)
             ]
     in ul [] items
 
 viewDerivedStats : Model -> Html.Html
 viewDerivedStats model =
-    div [] []
+    let viewStat (title, stat) =
+            li []
+                [ span [] [text <| title ++ ": " ++ stat model]
+                ]
+        i = Format.int
+        f = Format.float
+        items = List.map viewStat
+            [ ("Attack Damage", i << attackDamage)
+            , ("Attack Speed", f << attackSpeed)
+            ]
+    in ul [] items
 
 levelUp : Stat -> Stat
 levelUp stat =
