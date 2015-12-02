@@ -1,11 +1,14 @@
 module Battle where
 
+import Color
 import Html exposing (div, h3, text, ul, li)
+import Html.Attributes exposing (style)
 import Html.Events exposing (onClick)
 
 import BattleStats exposing (attackDamage, attackSpeed, goldBonusMultiplier)
 import Currency
 import Format
+import Style exposing (..)
 
 type alias Model =
     { health : Int
@@ -71,6 +74,22 @@ view stats model =
     div []
         [ h3 [] [text "Battle"]
         , div [] [text <| "Health: " ++ Format.int model.health]
+        , div 
+            [ style
+                [ width <| px 300
+                , height <| px 50
+                , backgroundColor Color.darkRed
+                ]
+            ]
+            [ div
+                [ style
+                    [ width <| pct <| 100 * model.health // model.maxHealth
+                    , height <| pct 100
+                    , backgroundColor Color.red
+                    ]
+                ]
+                []
+            ]
         , div [] [text "Reward: "]
         , ul []
             <|  let currency = reward stats model
