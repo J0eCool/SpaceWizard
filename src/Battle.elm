@@ -1,6 +1,6 @@
 module Battle where
 
-import Html exposing (div, h3, text)
+import Html exposing (div, h3, text, ul, li)
 import Html.Events exposing (onClick)
 
 import BattleStats exposing (attackDamage, attackSpeed, goldBonusMultiplier)
@@ -12,6 +12,7 @@ type alias Model =
     , maxHealth : Int
     , attackTimer : Float
     , gold : Int
+    , experience : Int
     }
 
 type Action
@@ -23,6 +24,7 @@ init =
     , maxHealth = 50
     , attackTimer = 0
     , gold = 8
+    , experience = 1
     }
 
 update : Action -> BattleStats.Model -> Model -> (Model, List Currency.Bundle)
@@ -59,7 +61,7 @@ updateTick dT stats model =
                     updatedHealth
             }
         ,   if didDie then
-                [reward stats model]
+                reward stats model
             else
                 []
         )
@@ -69,15 +71,19 @@ view stats model =
     div []
         [ h3 [] [text "Battle"]
         , div [] [text <| "Health: " ++ Format.int model.health]
-        , div []
-            [ text
-                <| "Reward: "
-                ++ Format.currency (reward stats model)
-            ]
+        , div [] [text "Reward: "]
+        , ul []
+            <|  let currency = reward stats model
+                    item c = li [] [text <| Format.currency c]
+                in List.map item currency
         ]
 
-reward : BattleStats.Model -> Model -> Currency.Bundle
+reward : BattleStats.Model -> Model -> List Currency.Bundle
 reward stats model =
-    ( Currency.Gold
-    , round <| toFloat (model.gold) * goldBonusMultiplier stats
-    )
+    [   ( Currency.Gold
+        , round <| toFloat model.gold * goldBonusMultiplier stats
+        )
+    ,   ( Currency.Experience
+        , model.experience
+        )
+    ]
