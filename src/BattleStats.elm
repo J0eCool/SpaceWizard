@@ -83,11 +83,12 @@ viewBaseStats address model =
                         ++ ")"
                     ]
                 ]
-        items = List.map viewStat
-            [ ("Strength", .strength, UpgradeStrength)
-            , ("Speed", .speed, UpgradeSpeed)
-            , ("Luck", .luck, UpgradeLuck)
-            ]
+        items =
+            List.map viewStat
+                [ ("Strength", .strength, UpgradeStrength)
+                , ("Speed", .speed, UpgradeSpeed)
+                , ("Luck", .luck, UpgradeLuck)
+                ]
     in ul [] items
 
 viewDerivedStats : Model -> Html.Html
@@ -98,11 +99,12 @@ viewDerivedStats model =
                 ]
         i = Format.int
         f = Format.float
-        items = List.map viewStat
-            [ ("Attack Damage", i << attackDamage)
-            , ("Attack Speed", f << attackSpeed)
-            , ("Gold Bonus %", f << goldBonus)
-            ]
+        items =
+            List.map viewStat
+                [ ("Attack Damage", i << attackDamage)
+                , ("Attack Speed", f << attackSpeed)
+                , ("Gold Bonus %", f << goldBonus)
+                ]
     in ul [] items
 
 levelUp : Stat -> Stat
@@ -121,12 +123,12 @@ cost stat =
 
 growthValue : Int -> Growth -> Float
 growthValue level growth =
-    let l = toFloat level
+    let lv = toFloat level
     in case growth of
         LinearGrowth base slope ->
-            slope * (l - 1) + base
+            slope * (lv - 1) + base
         PowerGrowth lin powFac pow ->
-            lin * l + powFac * (l - 1) ^ pow
+            lin * lv + powFac * (lv - 1) ^ pow
 
 attackDamage : Model -> Int
 attackDamage model =
