@@ -10,11 +10,15 @@ import Format
 import Widgets.ProgressBar as ProgressBar
 
 type alias Model =
-    { health : Int
-    , maxHealth : Int
+    { enemy : Enemy
     , attackTimer : Float
     , gold : Int
     , experience : Int
+    }
+
+type alias Enemy =
+    { level : Int
+    , health : Int
     }
 
 type Action
@@ -22,8 +26,10 @@ type Action
 
 init : Model
 init =
-    { health = 50
-    , maxHealth = 50
+    { enemy =
+        { level = 1
+        , health = 50
+        }
     , attackTimer = 0
     , gold = 8
     , experience = 1
@@ -46,24 +52,31 @@ updateTick dT stats model =
             updatedTimer / timeToAttack
                 |> floor
                 |> min maxNumAttacks
-        updatedHealth = 
-            model.health - numAttacks * attackDamage stats
-        didDie =
-            updatedHealth <= 0
+        updateEnemy enemy =
+            let updatedHealth = 
+                    enemy.health - numAttacks * attackDamage stats
+                didDie =
+                    updatedHealth <= 0
+            in ({ enemy
+                | health =
+                    if didDie then
+                        maxHealth model.enemy
+                    else
+                        updatedHealth
+                }
+                , didDie
+                )
+        (updatedEnemy, didDie) = updateEnemy model.enemy
     in ( { model
             | attackTimer =
                 if numAttacks >= maxNumAttacks then
                     0
                 else
                     updatedTimer - toFloat numAttacks * timeToAttack
-            , health =
-                if didDie then
-                    model.maxHealth
-                else
-                    updatedHealth
+            , enemy = updatedEnemy
             }
         ,   if didDie then
-                reward stats model
+                reward stats model.enemy
             else
                 []
         )
@@ -73,8 +86,8 @@ view stats model =
     let healthBar =
             { width = 300
             , height = 20
-            , curAmount = toFloat <| model.health
-            , maxAmount = toFloat <| model.maxHealth
+            , curAmount = toFloat <| model.enemy.health
+            , maxAmount = toFloat <| maxHealth model.enemy
             , color = Color.rgb 240 32 32
             , background = Color.rgb 128 16 16
             }
@@ -88,22 +101,31 @@ view stats model =
             }
     in div []
         [ h3 [] [text "Battle"]
-        , div [] [text <| "Health: " ++ Format.int model.health]
+        , div [] [text <| "Enemy level:" ++ Format.int model.enemy.level]
+        , div [] [text <| "Health: " ++ Format.int model.enemy.health]
         , ProgressBar.view healthBar
         , ProgressBar.view attackBar
         , div [] [text "Reward: "]
         , ul []
-            <|  let currency = reward stats model
+            <|  let currency = reward stats model.enemy
                     item c = li [] [text <| Format.currency c]
                 in List.map item currency
         ]
 
-reward : BattleStats.Model -> Model -> List Currency.Bundle
-reward stats model =
+maxHealth : Enemy -> Int
+maxHealth enemy =
+    let l = enemy.level - 1
+    in 50 + l * 10 + l ^ 2
+
+reward : BattleStats.Model -> Enemy -> List Currency.Bundle
+reward stats enemy =
+    let baseGold = 5 + enemy.level
+        baseExp = 9 + enemy.level ^ 2
+    in
     [   ( Currency.Gold
-        , round <| toFloat model.gold * goldBonusMultiplier stats
+        , round <| toFloat baseGold * goldBonusMultiplier stats
         )
     ,   ( Currency.Experience
-        , model.experience
+        , baseExp
         )
     ]
