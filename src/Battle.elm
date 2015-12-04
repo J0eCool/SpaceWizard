@@ -71,17 +71,26 @@ updateTick dT stats model =
 view : BattleStats.Model -> Model -> Html
 view stats model =
     let healthBar =
-            { w = 300
-            , h = 20
+            { width = 300
+            , height = 20
             , curAmount = toFloat <| model.health
             , maxAmount = toFloat <| model.maxHealth
-            , bgColor = Color.rgb 128 16 16
-            , fgColor = Color.rgb 240 32 32
+            , color = Color.rgb 240 32 32
+            , background = Color.rgb 128 16 16
+            }
+        attackBar =
+            { width = 300
+            , height = 12
+            , curAmount = model.attackTimer
+            , maxAmount = 1 / attackSpeed stats
+            , color = Color.rgb 255 0 255
+            , background = Color.rgb 32 32 32
             }
     in div []
         [ h3 [] [text "Battle"]
         , div [] [text <| "Health: " ++ Format.int model.health]
         , ProgressBar.view healthBar
+        , ProgressBar.view attackBar
         , div [] [text "Reward: "]
         , ul []
             <|  let currency = reward stats model

@@ -22,10 +22,10 @@ update rewards model =
     applyRewards rewards model
 
 view : Model -> Html
-view model = 
+view model =
     div []
         [ h3 [] [text "Inventory"]
-        , let lines = map viewCurrency model
+        ,   let lines = map viewCurrency model
             in ul [] lines
         ]
 

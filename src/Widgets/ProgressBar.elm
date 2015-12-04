@@ -7,12 +7,12 @@ import Html.Attributes exposing (style)
 import Style exposing (..)
 
 type alias Model =
-    { w : Int
-    , h : Int
+    { width : Int
+    , height : Int
     , curAmount : Float
     , maxAmount : Float
-    , bgColor : Color
-    , fgColor : Color
+    , color : Color
+    , background : Color
     }
 
 view : Model -> Html
@@ -23,16 +23,16 @@ view bar =
                 [ style
                     [ width <| Pct <| 100 * fraction
                     , height <| Pct 100
-                    , backgroundColor <| bar.fgColor
+                    , backgroundColor <| bar.color
                     ]
                 ]
                 []
         background = 
             div 
                 [ style
-                    [ width <| Px bar.w
-                    , height <| Px bar.h
-                    , backgroundColor <| bar.bgColor
+                    [ width <| Px bar.width
+                    , height <| Px bar.height
+                    , backgroundColor <| bar.background
                     ]
                 ]
                 [ foreground
