@@ -11,21 +11,15 @@ type alias Style =
 ----------------------------------
 
 type Size n
-    = Pixels n
-    | Percent n
-
-px : number -> Size number
-px n = Pixels n
-
-pct : number -> Size number
-pct n = Percent n
+    = Px n
+    | Pct n
 
 sizeStr : Size number -> String
 sizeStr size =
     case size of
-        Pixels pix ->
+        Px pix ->
             toString pix ++ "px"
-        Percent pct ->
+        Pct pct ->
             toString pct ++ "%"
 
 width : Size number -> Style

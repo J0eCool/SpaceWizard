@@ -1,6 +1,6 @@
 module BattleStats where
 
-import Html exposing (div, h3, text, span, button, ul, li)
+import Html exposing (Html, div, h3, text, span, button, ul, li)
 import Html.Events exposing (onClick)
 
 import Currency
@@ -56,7 +56,7 @@ update action model =
         UpgradeLuck ->
             { model | luck = levelUp model.luck }
 
-view : Signal.Address (Currency.Bundle, Action) -> Model -> Html.Html
+view : Signal.Address (Currency.Bundle, Action) -> Model -> Html
 view address model =
     div []
         [ h3 [] [text "Stats"]
@@ -64,7 +64,7 @@ view address model =
         , viewDerivedStats model
         ]
 
-viewBaseStats : Signal.Address (Currency.Bundle, Action) -> Model -> Html.Html
+viewBaseStats : Signal.Address (Currency.Bundle, Action) -> Model -> Html
 viewBaseStats address model =
     let viewStat (title, field, action) =
             let stat = field model
@@ -91,7 +91,7 @@ viewBaseStats address model =
                 ]
     in ul [] items
 
-viewDerivedStats : Model -> Html.Html
+viewDerivedStats : Model -> Html
 viewDerivedStats model =
     let viewStat (title, stat) =
             li []

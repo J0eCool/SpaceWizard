@@ -1,5 +1,5 @@
 import Effects
-import Html exposing (span, div, button, text, h3, ul, li)
+import Html exposing (Html, span, div, button, text, h3, ul, li)
 import Html.Attributes exposing (class)
 import Html.Events exposing (onClick)
 import Signal
@@ -25,7 +25,7 @@ type Action
     | StatsAction BattleStats.Action
     | Tick Float
 
-main : Signal Html.Html
+main : Signal Html
 main =
     app.html
 
@@ -52,7 +52,7 @@ inputs =
     [ fps 60 |> Signal.map Tick
     ]
 
-view : Signal.Address Action -> Model -> Html.Html
+view : Signal.Address Action -> Model -> Html
 view address model =
     let forward actionType (cost, action) =
             TryPurchase (cost, actionType action)

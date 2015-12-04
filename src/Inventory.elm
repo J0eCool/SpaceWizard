@@ -1,7 +1,7 @@
 module Inventory where
 
 import Dict
-import Html exposing (h3, text, div, ul, li, span)
+import Html exposing (Html, h3, text, div, ul, li, span)
 
 import Currency
 import Format
@@ -21,7 +21,7 @@ update : List Currency.Bundle -> Model -> Model
 update rewards model =
     applyRewards rewards model
 
-view : Model -> Html.Html
+view : Model -> Html
 view model = 
     div []
         [ h3 [] [text "Inventory"]
@@ -29,7 +29,7 @@ view model =
             in ul [] lines
         ]
 
-viewCurrency : Currency.Bundle -> Html.Html
+viewCurrency : Currency.Bundle -> Html
 viewCurrency (t, amount) =
     li []
         [ span [] [text <| toString t ++ ":"]

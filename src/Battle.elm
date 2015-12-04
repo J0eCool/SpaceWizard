@@ -1,14 +1,13 @@
 module Battle where
 
 import Color
-import Html exposing (div, h3, text, ul, li)
-import Html.Attributes exposing (style)
+import Html exposing (Html, div, h3, text, ul, li)
 import Html.Events exposing (onClick)
 
 import BattleStats exposing (attackDamage, attackSpeed, goldBonusMultiplier)
 import Currency
 import Format
-import Style exposing (..)
+import Widgets.ProgressBar as ProgressBar
 
 type alias Model =
     { health : Int
@@ -69,27 +68,20 @@ updateTick dT stats model =
                 []
         )
 
-view : BattleStats.Model -> Model -> Html.Html
+view : BattleStats.Model -> Model -> Html
 view stats model =
-    div []
+    let healthBar =
+            { w = 300
+            , h = 20
+            , curAmount = toFloat <| model.health
+            , maxAmount = toFloat <| model.maxHealth
+            , bgColor = Color.rgb 128 16 16
+            , fgColor = Color.rgb 240 32 32
+            }
+    in div []
         [ h3 [] [text "Battle"]
         , div [] [text <| "Health: " ++ Format.int model.health]
-        , div 
-            [ style
-                [ width <| px 300
-                , height <| px 50
-                , backgroundColor Color.darkRed
-                ]
-            ]
-            [ div
-                [ style
-                    [ width <| pct <| 100 * model.health // model.maxHealth
-                    , height <| pct 100
-                    , backgroundColor Color.red
-                    ]
-                ]
-                []
-            ]
+        , ProgressBar.view healthBar
         , div [] [text "Reward: "]
         , ul []
             <|  let currency = reward stats model
