@@ -54,13 +54,15 @@ inputs =
 
 view : Signal.Address Action -> Model -> Html
 view address model =
-    let forward actionType (cost, action) =
+    let purchase actionType (cost, action) =
             TryPurchase (cost, actionType action)
+        battleAddress =
+            Signal.forwardTo address BattleAction
         shopAddress =
-            Signal.forwardTo address (forward StatsAction)
+            Signal.forwardTo address (purchase StatsAction)
     in div []
         [ Inventory.view model.inventory
-        , Battle.view model.stats model.battle
+        , Battle.view battleAddress model.stats model.battle
         , BattleStats.view shopAddress model.stats
         ]
 

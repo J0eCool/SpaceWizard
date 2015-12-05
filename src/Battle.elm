@@ -1,7 +1,7 @@
 module Battle where
 
 import Color
-import Html exposing (Html, div, h3, text, ul, li)
+import Html exposing (Html, div, h3, text, ul, li, button)
 import Html.Events exposing (onClick)
 
 import BattleStats exposing (attackDamage, attackSpeed, goldBonusMultiplier)
@@ -23,6 +23,8 @@ type alias Enemy =
 
 type Action
     = Tick Float
+    | IncreaseLevel
+    --| DecreaseLevel
 
 init : Model
 init =
@@ -40,6 +42,16 @@ update action stats model =
     case action of
         Tick dT ->
             updateTick dT stats model
+        IncreaseLevel ->
+            let enemy = model.enemy
+            in ({ model
+                | enemy =
+                    { enemy
+                    | level = enemy.level + 1
+                    }
+                    |> resetHealth
+                }
+                , [])
 
 updateTick : Float -> BattleStats.Model -> Model -> (Model, List Currency.Bundle)
 updateTick dT stats model =
@@ -52,21 +64,19 @@ updateTick dT stats model =
             updatedTimer / timeToAttack
                 |> floor
                 |> min maxNumAttacks
-        updateEnemy enemy =
-            let updatedHealth = 
-                    enemy.health - numAttacks * attackDamage stats
-                didDie =
-                    updatedHealth <= 0
-            in ({ enemy
-                | health =
-                    if didDie then
-                        maxHealth model.enemy
-                    else
-                        updatedHealth
-                }
-                , didDie
-                )
-        (updatedEnemy, didDie) = updateEnemy model.enemy
+        enemy = model.enemy
+        updatedHealth =
+            enemy.health - numAttacks * attackDamage stats
+        didDie =
+            updatedHealth <= 0
+        updatedEnemy =
+            { enemy
+            | health =
+                if didDie then
+                    maxHealth model.enemy
+                else
+                    updatedHealth
+            }
     in ( { model
             | attackTimer =
                 if numAttacks >= maxNumAttacks then
@@ -81,8 +91,8 @@ updateTick dT stats model =
                 []
         )
 
-view : BattleStats.Model -> Model -> Html
-view stats model =
+--view : BattleStats.Model -> Model -> Html
+view address stats model =
     let healthBar =
             { width = 300
             , height = 20
@@ -101,7 +111,10 @@ view stats model =
             }
     in div []
         [ h3 [] [text "Battle"]
-        , div [] [text <| "Enemy level:" ++ Format.int model.enemy.level]
+        , div []
+            [ text <| "Enemy level:" ++ Format.int model.enemy.level
+            , button [onClick address IncreaseLevel] [text "+"]
+            ]
         , div [] [text <| "Health: " ++ Format.int model.enemy.health]
         , ProgressBar.view healthBar
         , ProgressBar.view attackBar
@@ -116,6 +129,11 @@ maxHealth : Enemy -> Int
 maxHealth enemy =
     let l = enemy.level - 1
     in 50 + l * 10 + l ^ 2
+
+resetHealth enemy =
+    { enemy
+    | health = maxHealth enemy
+    }
 
 reward : BattleStats.Model -> Enemy -> List Currency.Bundle
 reward stats enemy =
