@@ -11,9 +11,8 @@ import Widgets.ProgressBar as ProgressBar
 
 type alias Model =
     { enemy : Enemy
+    , highestLevelBeaten : Int
     , attackTimer : Float
-    , gold : Int
-    , experience : Int
     }
 
 type alias Enemy =
@@ -24,7 +23,7 @@ type alias Enemy =
 type Action
     = Tick Float
     | IncreaseLevel
-    --| DecreaseLevel
+    | DecreaseLevel
 
 init : Model
 init =
@@ -32,9 +31,8 @@ init =
         { level = 1
         , health = 50
         }
+    , highestLevelBeaten = 0
     , attackTimer = 0
-    , gold = 8
-    , experience = 1
     }
 
 update : Action -> BattleStats.Model -> Model -> (Model, List Currency.Bundle)
@@ -43,15 +41,9 @@ update action stats model =
         Tick dT ->
             updateTick dT stats model
         IncreaseLevel ->
-            let enemy = model.enemy
-            in ({ model
-                | enemy =
-                    { enemy
-                    | level = enemy.level + 1
-                    }
-                    |> resetHealth
-                }
-                , [])
+            updateEnemyLevel 1 model
+        DecreaseLevel ->
+            updateEnemyLevel (-1) model
 
 updateTick : Float -> BattleStats.Model -> Model -> (Model, List Currency.Bundle)
 updateTick dT stats model =
@@ -84,6 +76,11 @@ updateTick dT stats model =
                 else
                     updatedTimer - toFloat numAttacks * timeToAttack
             , enemy = updatedEnemy
+            , highestLevelBeaten =
+                if didDie then
+                    max model.highestLevelBeaten enemy.level
+                else
+                    model.highestLevelBeaten
             }
         ,   if didDie then
                 reward stats model.enemy
@@ -91,7 +88,26 @@ updateTick dT stats model =
                 []
         )
 
---view : BattleStats.Model -> Model -> Html
+updateEnemyLevel : Int -> Model -> (Model, List Currency.Bundle)
+updateEnemyLevel diff model =
+    let enemy = model.enemy
+        newLevel =
+            enemy.level + diff
+                |> clamp 1 (model.highestLevelBeaten + 1)
+    in (if enemy.level == newLevel then
+            model
+        else
+            { model
+            | enemy =
+                { enemy
+                | level = newLevel
+                }
+                |> resetHealth
+            , attackTimer = 0
+            }
+        , [])
+
+view : Signal.Address Action -> BattleStats.Model -> Model -> Html
 view address stats model =
     let healthBar =
             { width = 300
@@ -111,10 +127,7 @@ view address stats model =
             }
     in div []
         [ h3 [] [text "Battle"]
-        , div []
-            [ text <| "Enemy level:" ++ Format.int model.enemy.level
-            , button [onClick address IncreaseLevel] [text "+"]
-            ]
+        , viewLevel address model
         , div [] [text <| "Health: " ++ Format.int model.enemy.health]
         , ProgressBar.view healthBar
         , ProgressBar.view attackBar
@@ -125,10 +138,31 @@ view address stats model =
                 in List.map item currency
         ]
 
+viewLevel : Signal.Address Action -> Model -> Html
+viewLevel address model =
+    let levelButton action label =
+            button [onClick address action] [text label]
+        decButton =
+            if model.enemy.level > 1 then
+                [levelButton DecreaseLevel "-"]
+            else
+                []
+        incButton =
+            if model.enemy.level <= model.highestLevelBeaten then
+                [levelButton IncreaseLevel "+"]
+            else
+                []
+    in div []
+        ([ text <| "Enemy level:"]
+        ++ decButton
+        ++ [text <| Format.int model.enemy.level]
+        ++ incButton
+        )
+
 maxHealth : Enemy -> Int
 maxHealth enemy =
     let l = enemy.level - 1
-    in 50 + l * 10 + l ^ 2
+    in 50 + l * 9 + l ^ 2
 
 resetHealth enemy =
     { enemy
@@ -140,10 +174,10 @@ reward stats enemy =
     let baseGold = 5 + enemy.level
         baseExp = 9 + enemy.level ^ 2
     in
-    [   ( Currency.Gold
-        , round <| toFloat baseGold * goldBonusMultiplier stats
-        )
-    ,   ( Currency.Experience
+    [   ( Currency.Experience
         , baseExp
+        )
+    ,   ( Currency.Gold
+        , round <| toFloat baseGold * goldBonusMultiplier stats
         )
     ]
