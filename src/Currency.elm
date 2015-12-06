@@ -15,9 +15,16 @@ type alias Bundle =
 enumPairing : List (Type, Int)
 enumPairing =
     [ (Invalid, -1)
-    , (Gold, 0)
-    , (Experience, 1)
+    , (Experience, 0)
+    , (Gold, 1)
     ]
+
+abbreviation : Type -> String
+abbreviation t =
+    case t of
+        Gold -> "G"
+        Experience -> "EXP"
+        Invalid -> "INVALID"
 
 toEnum : Type -> Int
 toEnum t =

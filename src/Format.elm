@@ -38,4 +38,4 @@ floatWithDigits digits n =
 
 currency : Currency.Bundle -> String
 currency (t, amount) =
-    int amount ++ " " ++ toString t
+    int amount ++ " " ++ Currency.abbreviation t

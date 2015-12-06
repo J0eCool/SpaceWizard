@@ -16,10 +16,13 @@ type Growth
     = LinearGrowth Float Float
     | PowerGrowth Float Float Float
 
+type Cost
+    = TotalCost Float Float Float
+
 type alias Stat =
     { level : Int
     , growth : Growth
-    , costGrowth : Growth
+    , cost : Cost
     }
 
 type Action
@@ -32,19 +35,21 @@ init =
     { strength =
         { level = 1
         , growth = LinearGrowth 10 1
-        , costGrowth = PowerGrowth 4 1 2
+        , cost = baseStatCost
         }
     , speed =
         { level = 1
         , growth = LinearGrowth 1.2 0.1
-        , costGrowth = PowerGrowth 7 5 2
+        , cost = baseStatCost
         }
     , luck =
         { level = 1
         , growth = LinearGrowth 0 15
-        , costGrowth = PowerGrowth 50 10 2
+        , cost = baseStatCost
         }
     }
+
+baseStatCost = TotalCost 0.5 3 (-4.5)
 
 update : Action -> Model -> Model
 update action model =
@@ -68,7 +73,7 @@ viewBaseStats : Signal.Address (Currency.Bundle, Action) -> Model -> Html
 viewBaseStats address model =
     let viewStat (title, field, action) =
             let stat = field model
-                curCost = cost stat
+                curCost = cost 1 stat
             in li []
                 [ span []
                     [ text
@@ -115,11 +120,17 @@ value : Stat -> Float
 value stat =
     growthValue stat.level stat.growth
 
-cost : Stat -> Currency.Bundle
-cost stat =
-    ( Currency.Gold
-    , floor <| growthValue stat.level stat.costGrowth
-    )
+cost : Float -> Stat -> Currency.Bundle
+cost delta stat =
+    let cur = totalCostValue (toFloat stat.level) stat.cost
+        next = totalCostValue (toFloat stat.level + delta) stat.cost
+    in  ( Currency.Experience
+        , floor <| next - cur
+        )
+
+totalCostValue : Float -> Cost -> Float
+totalCostValue level (TotalCost a b c) =
+    level * (c + level * (b + level * a)) -- ax^3 + bx^2 + cx
 
 growthValue : Int -> Growth -> Float
 growthValue level growth =
