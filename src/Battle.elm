@@ -13,6 +13,7 @@ type alias Model =
     { enemy : Enemy
     , highestLevelBeaten : Int
     , attackTimer : Float
+    , isAttacking : Bool
     }
 
 type alias Enemy =
@@ -24,6 +25,7 @@ type Action
     = Tick Float
     | IncreaseLevel
     | DecreaseLevel
+    | ToggleAttack
 
 init : Model
 init =
@@ -33,6 +35,7 @@ init =
         }
     , highestLevelBeaten = 0
     , attackTimer = 0
+    , isAttacking = True
     }
 
 update : Action -> BattleStats.Model -> Model -> (Model, List Currency.Bundle)
@@ -44,11 +47,15 @@ update action stats model =
             updateEnemyLevel 1 model
         DecreaseLevel ->
             updateEnemyLevel (-1) model
+        ToggleAttack ->
+            ( { model | isAttacking = not model.isAttacking }
+            , []
+            )
 
 updateTick : Float -> BattleStats.Model -> Model -> (Model, List Currency.Bundle)
 updateTick dT stats model =
     let updatedTimer =
-            model.attackTimer + dT
+            model.attackTimer + (if model.isAttacking then dT else 0)
         timeToAttack =
             1 / attackSpeed stats
         maxNumAttacks = 3
@@ -125,12 +132,20 @@ view address stats model =
             , color = Color.rgb 255 0 255
             , background = Color.rgb 32 32 32
             }
+        attackText =
+            if model.isAttacking then
+                "Pause"
+            else
+                "Attack"
+        attackButton =
+            button [onClick address ToggleAttack] [text attackText]
     in div []
         [ h3 [] [text "Battle"]
         , viewLevel address model
         , div [] [text <| "Health: " ++ Format.int model.enemy.health]
         , ProgressBar.view healthBar
         , ProgressBar.view attackBar
+        , attackButton
         , div [] [text "Reward: "]
         , ul []
             <|  let currency = reward stats model.enemy
@@ -140,20 +155,19 @@ view address stats model =
 
 viewLevel : Signal.Address Action -> Model -> Html
 viewLevel address model =
-    let levelButton action label =
-            button [onClick address action] [text label]
+    let levelButton action label cond =
+            if cond then
+                [button [onClick address action] [text label]]
+            else
+                []
         decButton =
-            if model.enemy.level > 1 then
-                [levelButton DecreaseLevel "-"]
-            else
-                []
+            levelButton DecreaseLevel "-"
+                <| model.enemy.level > 1
         incButton =
-            if model.enemy.level <= model.highestLevelBeaten then
-                [levelButton IncreaseLevel "+"]
-            else
-                []
+            levelButton IncreaseLevel "+"
+                <| model.enemy.level <= model.highestLevelBeaten
     in div []
-        ([ text <| "Enemy level:"]
+        ( [ text <| "Enemy level:"]
         ++ decButton
         ++ [text <| Format.int model.enemy.level]
         ++ incButton
