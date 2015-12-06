@@ -20,10 +20,9 @@ type alias Model =
     }
 
 type Action
-    = TryPurchase (Currency.Bundle, Action)
+    = Tick Float
     | BattleAction Battle.Action
     | StatsAction BattleStats.Action
-    | Tick Float
 
 main : Signal Html
 main =
@@ -54,12 +53,10 @@ inputs =
 
 view : Signal.Address Action -> Model -> Html
 view address model =
-    let purchase actionType (cost, action) =
-            TryPurchase (cost, actionType action)
-        battleAddress =
+    let battleAddress =
             Signal.forwardTo address BattleAction
         shopAddress =
-            Signal.forwardTo address (purchase StatsAction)
+            Signal.forwardTo address StatsAction
     in div []
         [ Inventory.view model.inventory
         , Battle.view battleAddress model.stats model.battle
@@ -69,18 +66,15 @@ view address model =
 update : Action -> Model -> Model
 update action model =
     case action of
-        TryPurchase (cost, successfulAction) ->
-            let result =
-                Inventory.spend cost model.inventory
-            in case result of
-                Ok inventory' ->
-                    { model | inventory = inventory' }
-                        |> update successfulAction
-                Err _ ->
-                    model
         Tick delta ->
             let dT = inSeconds delta
-            in update (BattleAction <| Battle.Tick dT) model
+                wrapped =
+                    [ BattleAction << Battle.Tick
+                    , StatsAction << BattleStats.Tick
+                    ]
+                actions =
+                    List.map (\f -> update <| f dT) wrapped
+            in List.foldl (\f m -> f m) model actions
         BattleAction bAction ->
             let (battle', battleRewards) = Battle.update bAction model.stats model.battle
             in { model
@@ -88,4 +82,16 @@ update action model =
                 , inventory = Inventory.update battleRewards model.inventory
                 }
         StatsAction sAction ->
-            { model | stats = BattleStats.update sAction model.stats }
+            let (stats', statCost) = BattleStats.update sAction model.stats
+            in tryPurchase statCost model { model | stats = stats' }
+
+tryPurchase cost model successfulModel =
+    let result =
+        Inventory.spendAll cost successfulModel.inventory
+    in case result of
+        Ok inventory' ->
+            { successfulModel
+            | inventory = inventory'
+            }
+        Err _ ->
+            model

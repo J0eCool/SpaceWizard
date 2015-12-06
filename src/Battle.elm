@@ -176,7 +176,7 @@ viewLevel address model =
 maxHealth : Enemy -> Int
 maxHealth enemy =
     let l = enemy.level - 1
-    in 50 + l * 9 + l ^ 2
+    in 100 + 18 * l + 2 * l ^ 2
 
 resetHealth enemy =
     { enemy

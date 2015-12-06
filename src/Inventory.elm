@@ -54,10 +54,20 @@ spend : Currency.Bundle -> Model -> Result String Model
 spend (t, cost) model =
     let curAmt = get t model
         canAfford = curAmt >= cost
-    in if canAfford then
+    in  if canAfford then
             Ok <| set (t, curAmt - cost) model
         else
             Err <| "Not enough " ++ toString t
+
+spendAll : List Currency.Bundle -> Model -> Result String Model
+spendAll costs model =
+    let f cost res =
+        case res of
+            Ok inv ->
+                spend cost inv
+            e -> e
+    in List.foldl f (Ok model) costs
+
 
 applyReward : Currency.Bundle -> Model -> Model
 applyReward reward =

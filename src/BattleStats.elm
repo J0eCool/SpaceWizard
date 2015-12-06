@@ -1,7 +1,7 @@
 module BattleStats where
 
 import Html exposing (Html, div, h3, text, span, button, ul, li)
-import Html.Events exposing (onClick)
+import Html.Events exposing (onMouseDown, onMouseUp, onMouseLeave)
 
 import Currency
 import Format
@@ -10,6 +10,7 @@ type alias Model =
     { strength : Stat
     , speed : Stat
     , luck : Stat
+    , heldAction : Maybe TimedAction
     }
 
 type Growth
@@ -20,12 +21,16 @@ type Cost
     = TotalCost Float Float Float
 
 type alias Stat =
-    { level : Int
+    { level : Float
     , growth : Growth
     , cost : Cost
     }
 
 type Action
+    = SetHeld (Maybe TimedAction)
+    | Tick Float
+
+type TimedAction
     = UpgradeStrength
     | UpgradeSpeed
     | UpgradeLuck
@@ -34,7 +39,7 @@ init : Model
 init = 
     { strength =
         { level = 1
-        , growth = LinearGrowth 10 1
+        , growth = LinearGrowth 20 2
         , cost = baseStatCost
         }
     , speed =
@@ -47,21 +52,40 @@ init =
         , growth = LinearGrowth 0 15
         , cost = baseStatCost
         }
+    , heldAction = Nothing
     }
 
 baseStatCost = TotalCost 0.5 3 (-4.5)
 
-update : Action -> Model -> Model
+update : Action -> Model -> (Model, List Currency.Bundle)
 update action model =
     case action of
-        UpgradeStrength ->
-            { model | strength = levelUp model.strength }
-        UpgradeSpeed ->
-            { model | speed = levelUp model.speed }
-        UpgradeLuck ->
-            { model | luck = levelUp model.luck }
+        SetHeld action ->
+            ({ model | heldAction = action }, [])
+        Tick dT ->
+            case model.heldAction of
+                Just act ->
+                    updateTick dT act model
+                Nothing ->
+                    (model, [])
 
-view : Signal.Address (Currency.Bundle, Action) -> Model -> Html
+updateTick : Float -> TimedAction -> Model -> (Model, List Currency.Bundle)
+updateTick dT action model =
+    case action of
+        UpgradeStrength ->
+            ( { model | strength = levelUp dT model.strength }
+            , [ cost dT model.strength ]
+            )
+        UpgradeSpeed ->
+            ( { model | speed = levelUp dT model.speed }
+            , [ cost dT model.speed ]
+            )
+        UpgradeLuck ->
+            ( { model | luck = levelUp dT model.luck }
+            , [ cost dT model.luck ]
+            )
+
+view : Signal.Address Action -> Model -> Html
 view address model =
     div []
         [ h3 [] [text "Stats"]
@@ -69,7 +93,7 @@ view address model =
         , viewDerivedStats model
         ]
 
-viewBaseStats : Signal.Address (Currency.Bundle, Action) -> Model -> Html
+viewBaseStats : Signal.Address Action -> Model -> Html
 viewBaseStats address model =
     let viewStat (title, field, action) =
             let stat = field model
@@ -78,10 +102,13 @@ viewBaseStats address model =
                 [ span []
                     [ text
                         <| title ++ ": "
-                        ++ Format.int stat.level
+                        ++ Format.float stat.level
                     ]
                 , button
-                    [onClick address (curCost, action)]
+                    [ onMouseDown address (SetHeld <| Just action)
+                    , onMouseUp address <| SetHeld Nothing
+                    , onMouseLeave address <| SetHeld Nothing
+                    ]
                     [ text
                         <| "+1 ("
                         ++ Format.currency curCost
@@ -112,9 +139,9 @@ viewDerivedStats model =
                 ]
     in ul [] items
 
-levelUp : Stat -> Stat
-levelUp stat =
-    { stat | level = stat.level + 1 }
+levelUp : Float -> Stat -> Stat
+levelUp delta stat =
+    { stat | level = stat.level + delta }
 
 value : Stat -> Float
 value stat =
@@ -122,24 +149,23 @@ value stat =
 
 cost : Float -> Stat -> Currency.Bundle
 cost delta stat =
-    let cur = totalCostValue (toFloat stat.level) stat.cost
-        next = totalCostValue (toFloat stat.level + delta) stat.cost
+    let cur = totalCostValue stat.level stat.cost
+        next = totalCostValue (stat.level + delta) stat.cost
     in  ( Currency.Experience
-        , floor <| next - cur
+        , next - cur
         )
 
-totalCostValue : Float -> Cost -> Float
+totalCostValue : Float -> Cost -> Int
 totalCostValue level (TotalCost a b c) =
-    level * (c + level * (b + level * a)) -- ax^3 + bx^2 + cx
+    floor <| level * (c + level * (b + level * a)) -- ax^3 + bx^2 + cx
 
-growthValue : Int -> Growth -> Float
+growthValue : Float -> Growth -> Float
 growthValue level growth =
-    let lv = toFloat level
-    in case growth of
+    case growth of
         LinearGrowth base slope ->
-            slope * (lv - 1) + base
+            slope * (level - 1) + base
         PowerGrowth lin powFac pow ->
-            lin * lv + powFac * (lv - 1) ^ pow
+            lin * level + powFac * (level - 1) ^ pow
 
 attackDamage : Model -> Int
 attackDamage model =
