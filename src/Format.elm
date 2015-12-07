@@ -36,6 +36,14 @@ floatWithDigits digits n =
                     )
     in intStr ++ remStr
 
+currencyWith : (a -> String) -> (Currency.Type, a) -> String
+currencyWith f (t, amount) =
+    f amount ++ " " ++ Currency.abbreviation t
+
 currency : Currency.Bundle -> String
-currency (t, amount) =
-    int amount ++ " " ++ Currency.abbreviation t
+currency =
+    currencyWith int
+
+floatCurrency : Currency.FloatBundle -> String
+floatCurrency =
+    currencyWith float

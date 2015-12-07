@@ -135,6 +135,7 @@ viewDerivedStats model =
             List.map viewStat
                 [ ("Attack Damage", i << attackDamage)
                 , ("Attack Speed", f << attackSpeed)
+                , ("DPS", \m -> f <| attackSpeed m * toFloat (attackDamage m))
                 , ("Gold Bonus %", f << goldBonus)
                 ]
     in ul [] items

@@ -7,6 +7,7 @@ import Html.Events exposing (onClick)
 import BattleStats exposing (attackDamage, attackSpeed, goldBonusMultiplier)
 import Currency
 import Format
+import Operators exposing (..)
 import Widgets.ProgressBar as ProgressBar
 
 type alias Model =
@@ -29,14 +30,15 @@ type Action
 
 init : Model
 init =
-    { enemy =
+    let enemy = 
         { level = 1
-        , health = 50
+        , health = 0
+        } 
+    in  { enemy = { enemy | health = maxHealth enemy }
+        , highestLevelBeaten = 0
+        , attackTimer = 0
+        , isAttacking = True
         }
-    , highestLevelBeaten = 0
-    , attackTimer = 0
-    , isAttacking = True
-    }
 
 update : Action -> BattleStats.Model -> Model -> (Model, List Currency.Bundle)
 update action stats model =
@@ -147,10 +149,7 @@ view address stats model =
         , ProgressBar.view attackBar
         , attackButton
         , div [] [text "Reward: "]
-        , ul []
-            <|  let currency = reward stats model.enemy
-                    item c = li [] [text <| Format.currency c]
-                in List.map item currency
+        , viewRewards stats model
         ]
 
 viewLevel : Signal.Address Action -> Model -> Html
@@ -172,6 +171,25 @@ viewLevel address model =
         ++ [text <| Format.int model.enemy.level]
         ++ incButton
         )
+
+viewRewards : BattleStats.Model -> Model -> Html
+viewRewards stats model =
+    let currency =
+            reward stats model.enemy
+        attacksToKill =
+            ceiling <| maxHealth model.enemy ./ attackDamage stats
+        killsPerSecond =
+            attackSpeed stats / toFloat attacksToKill
+        perSecond =
+            Currency.bundleMap (\cur -> toFloat cur * killsPerSecond)
+        item c =
+            li []
+                [ text <| Format.currency c
+                    ++ " (+"
+                    ++ Format.floatCurrency (perSecond c)
+                    ++ "/s)"
+                ]
+    in ul [] <| List.map item currency
 
 maxHealth : Enemy -> Int
 maxHealth enemy =

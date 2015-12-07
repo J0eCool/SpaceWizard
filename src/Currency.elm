@@ -12,6 +12,9 @@ type Type
 type alias Bundle =
     (Type, Int)
 
+type alias FloatBundle =
+    (Type, Float)
+
 enumPairing : List (Type, Int)
 enumPairing =
     [ (Invalid, -1)
@@ -47,7 +50,13 @@ fromEnum e =
             Invalid
 
 bundleToEnum : Bundle -> (Int, Int)
-bundleToEnum (t, amount) = (toEnum t, amount)
+bundleToEnum (t, amount) =
+    (toEnum t, amount)
 
 bundleFromEnum : (Int, Int) -> Bundle
-bundleFromEnum (enum, amount) = (fromEnum enum, amount)
+bundleFromEnum (enum, amount) =
+    (fromEnum enum, amount)
+
+bundleMap : (Int -> a) -> Bundle -> (Type, a)
+bundleMap f (t, amt) =
+    (t, f amt)
