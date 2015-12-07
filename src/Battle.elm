@@ -1,7 +1,8 @@
 module Battle where
 
 import Color
-import Html exposing (Html, div, h3, text, ul, li, button)
+import Html exposing (Html, div, h3, text, ul, li, button, input)
+import Html.Attributes exposing (type', checked)
 import Html.Events exposing (onClick)
 
 import BattleStats exposing (attackDamage, attackSpeed, goldBonusMultiplier)
@@ -16,6 +17,7 @@ type alias Model =
     , attackTimer : Float
     , isAttacking : Bool
     , respawnTimer : Float
+    , autoProgress : Bool
     }
 
 type alias Enemy =
@@ -28,6 +30,7 @@ type Action
     | IncreaseLevel
     | DecreaseLevel
     | ToggleAttack
+    | ToggleAutoProgress
 
 init : Model
 init =
@@ -40,11 +43,13 @@ init =
         , attackTimer = 0
         , isAttacking = True
         , respawnTimer = 0
+        , autoProgress = False
         }
 
 update : Action -> BattleStats.Model -> Model -> (Model, List Currency.Bundle)
 update action stats model =
-    case action of
+    let no m = (m, [])
+    in case action of
         Tick dT ->
             updateTick dT stats model
         IncreaseLevel ->
@@ -52,9 +57,9 @@ update action stats model =
         DecreaseLevel ->
             updateEnemyLevel (-1) model
         ToggleAttack ->
-            ( { model | isAttacking = not model.isAttacking }
-            , []
-            )
+            no { model | isAttacking = not model.isAttacking }
+        ToggleAutoProgress ->
+            no { model | autoProgress = not model.autoProgress }
 
 updateTick : Float -> BattleStats.Model -> Model -> (Model, List Currency.Bundle)
 updateTick dT stats model =
@@ -85,6 +90,16 @@ updateTick dT stats model =
             not isRespawning && updatedHealth <= 0
         didRespawn =
             isRespawning && respawnTimer > timeToRespawn
+        highestLevelBeaten =
+            if didDie then
+                max model.highestLevelBeaten enemy.level
+            else
+                model.highestLevelBeaten
+        level =
+            if model.autoProgress && didDie then
+                highestLevelBeaten + 1
+            else
+                enemy.level
         updatedEnemy =
             { enemy
             | health =
@@ -92,6 +107,7 @@ updateTick dT stats model =
                     maxHealth model.enemy
                 else
                     updatedHealth
+            , level = level
             }
     in ( { model
             | attackTimer =
@@ -104,12 +120,10 @@ updateTick dT stats model =
                     0
                 else
                     respawnTimer
-            , enemy = updatedEnemy
+            , enemy =
+                updatedEnemy
             , highestLevelBeaten =
-                if didDie then
-                    max model.highestLevelBeaten enemy.level
-                else
-                    model.highestLevelBeaten
+                highestLevelBeaten
             }
         ,   if didDie then
                 reward stats model.enemy
@@ -170,9 +184,23 @@ view address stats model =
         , div [] [text <| "Health: " ++ Format.int model.enemy.health]
         , ProgressBar.view healthBar
         , ProgressBar.view attackBar
-        , attackButton
+        , div [] 
+            [checkbox address "Attack:" ToggleAttack model.isAttacking]
+        , div [] 
+            [checkbox address "Auto-progress:" ToggleAutoProgress model.autoProgress]
         , div [] [text "Reward: "]
         , viewRewards stats model
+        ]
+
+checkbox address label action value =
+    div []
+        [ text <| label ++ ": "
+        , input
+            [ type' "checkbox"
+            , checked value
+            , onClick address action
+            ]
+            []
         ]
 
 viewLevel : Signal.Address Action -> Model -> Html
