@@ -2,7 +2,6 @@ module Widgets.ProgressBar where
 
 import Color exposing (Color)
 import Html exposing (Html, div)
-import Html.Attributes exposing (style)
 
 import Style exposing (..)
 
@@ -16,7 +15,15 @@ type alias Model =
     }
 
 view : Model -> Html
-view bar =
+view =
+    baseView Block
+
+viewInline : Model -> Html
+viewInline =
+    baseView InlineBlock
+
+baseView : Display -> Model -> Html
+baseView displayType bar =
     let fraction = bar.curAmount / bar.maxAmount
         foreground =
             div
@@ -30,7 +37,10 @@ view bar =
         background = 
             div 
                 [ style
-                    [ width <| Px bar.width
+                    [ display displayType
+                    , verticalAlign Middle
+                    , margin1 <| Px 4
+                    , width <| Px bar.width
                     , height <| Px bar.height
                     , backgroundColor <| bar.background
                     ]

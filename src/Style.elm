@@ -2,13 +2,22 @@ module Style where
 
 import Char exposing (toCode, fromCode)
 import Color
+import Html.Attributes as Attr
 import String
 import Vendor
 
 type alias Style =
     (String, String)
 
-----------------------------------
+baseStyle : String -> (a -> String) -> a -> Style
+baseStyle str f x =
+    (str, f x)
+
+--style : List Style -> VirtualDom.Property
+style =
+    Attr.style
+
+-----------------------------------
 
 type Size n
     = Px n
@@ -23,20 +32,92 @@ sizeStr size =
             toString pct ++ "%"
 
 width : Size number -> Style
-width w =
-    ("width", sizeStr w)
+width =
+    baseStyle "width" sizeStr
 
 height : Size number -> Style
-height h =
-    ("height", sizeStr h)
+height =
+    baseStyle "height" sizeStr
 
-----------------------------------
+type alias MarginInput a =
+    { left : Size a
+    , right : Size a
+    , top : Size a
+    , bottom : Size a
+    }
+
+margin : MarginInput number -> Style
+margin input =
+    margin4 input.top input.right input.bottom input.left
+
+margin4 : Size number -> Size number -> Size number -> Size number -> Style
+margin4 top right bottom left =
+    let sizes =
+            [top, right, bottom, left]
+                |> List.map sizeStr
+                |> List.intersperse " "
+                |> String.concat
+    in ("margin", sizes)
+
+margin2 : Size number -> Size number -> Style
+margin2 vertical horizontal =
+    margin4 vertical horizontal vertical horizontal
+
+margin1 : Size number -> Style
+margin1 m =
+    margin4 m m m m
+
+-----------------------------------
 
 colorStr : Color.Color -> String
 colorStr color =
-    let { red, green, blue } = Color.toRgb color
-    in "rgb(" ++ toString red ++ ", " ++ toString green ++ ", " ++ toString blue ++ ")"
+    let { red, green, blue } =
+            Color.toRgb color
+        contents =
+            [red, green, blue]
+                |> List.map toString
+                |> List.intersperse ", "
+                |> String.concat
+    in "rgb(" ++ contents ++ ")"
 
 backgroundColor : Color.Color -> Style
-backgroundColor color =
-    ("background-color", colorStr color)
+backgroundColor =
+    baseStyle "background-color" colorStr
+
+-----------------------------------
+
+type Display
+    = None
+    | Inline
+    | Block
+    | InlineBlock
+
+displayStr : Display -> String
+displayStr d =
+    case d of
+        None -> "none"
+        Inline -> "inline"
+        Block -> "block"
+        InlineBlock -> "inline-block"
+
+display : Display -> Style
+display =
+    baseStyle "display" displayStr
+
+-----------------------------------
+
+type VerticalAlign
+    = Top
+    | Middle
+    | Bottom
+
+verticalAlignStr : VerticalAlign -> String
+verticalAlignStr align =
+    case align of
+        Top -> "top"
+        Middle -> "middle"
+        Bottom -> "bottom"
+
+verticalAlign : VerticalAlign -> Style
+verticalAlign =
+    baseStyle "vertical-align" verticalAlignStr

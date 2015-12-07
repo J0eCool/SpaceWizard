@@ -1,10 +1,13 @@
 module BattleStats where
 
+import Color
 import Html exposing (Html, div, h3, text, span, button, ul, li)
 import Html.Events exposing (onMouseDown, onMouseUp, onMouseLeave)
 
 import Currency
 import Format
+import Style exposing (..)
+import Widgets.ProgressBar as ProgressBar
 
 type alias Model =
     { strength : Stat
@@ -99,11 +102,25 @@ viewBaseStats address model =
             let stat = field model
                 curCost = cost 1 stat
             in li []
-                [ span []
+                [ span 
+                    [ style
+                        [ display InlineBlock
+                        , width <| Px 120
+                        ]
+
+                    ]
                     [ text
                         <| title ++ ": "
                         ++ Format.float stat.level
                     ]
+                , ProgressBar.viewInline
+                    { width = 200
+                    , height = 10
+                    , color = Color.rgb 64 255 200
+                    , background = Color.rgb 32 128 92
+                    , curAmount = stat.level - toFloat (floor stat.level)
+                    , maxAmount = 1
+                    }
                 , button
                     [ onMouseDown address (SetHeld <| Just action)
                     , onMouseUp address <| SetHeld Nothing
