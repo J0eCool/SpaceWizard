@@ -15,6 +15,7 @@ type alias Model =
     , highestLevelBeaten : Int
     , attackTimer : Float
     , isAttacking : Bool
+    , respawnTimer : Float
     }
 
 type alias Enemy =
@@ -38,6 +39,7 @@ init =
         , highestLevelBeaten = 0
         , attackTimer = 0
         , isAttacking = True
+        , respawnTimer = 0
         }
 
 update : Action -> BattleStats.Model -> Model -> (Model, List Currency.Bundle)
@@ -56,34 +58,52 @@ update action stats model =
 
 updateTick : Float -> BattleStats.Model -> Model -> (Model, List Currency.Bundle)
 updateTick dT stats model =
-    let updatedTimer =
-            model.attackTimer + (if model.isAttacking then dT else 0)
+    let isRespawning =
+            model.enemy.health <= 0
+        canAttack =
+            model.isAttacking && not isRespawning
+        dIf cond =
+            if cond then dT else 0
+        attackTimer =
+            model.attackTimer + dIf canAttack
+        respawnTimer =
+            model.respawnTimer + dIf isRespawning
         timeToAttack =
             1 / attackSpeed stats
-        maxNumAttacks = 3
+        maxNumAttacks =
+            3
         numAttacks =
-            updatedTimer / timeToAttack
+            attackTimer / timeToAttack
                 |> floor
                 |> min maxNumAttacks
-        enemy = model.enemy
+        enemy =
+            model.enemy
         updatedHealth =
             enemy.health - numAttacks * attackDamage stats
+                |> max 0
         didDie =
-            updatedHealth <= 0
+            not isRespawning && updatedHealth <= 0
+        didRespawn =
+            isRespawning && respawnTimer > timeToRespawn
         updatedEnemy =
             { enemy
             | health =
-                if didDie then
+                if didRespawn then
                     maxHealth model.enemy
                 else
                     updatedHealth
             }
     in ( { model
             | attackTimer =
-                if numAttacks >= maxNumAttacks then
+                if numAttacks >= maxNumAttacks || isRespawning then
                     0
                 else
-                    updatedTimer - toFloat numAttacks * timeToAttack
+                    attackTimer - toFloat numAttacks * timeToAttack
+            , respawnTimer =
+                if didRespawn then
+                    0
+                else
+                    respawnTimer
             , enemy = updatedEnemy
             , highestLevelBeaten =
                 if didDie then
@@ -111,7 +131,10 @@ updateEnemyLevel diff model =
                 { enemy
                 | level = newLevel
                 }
-                |> resetHealth
+                |>  if enemy.health > 0 then
+                        resetHealth
+                    else
+                        identity
             , attackTimer = 0
             }
         , [])
@@ -178,10 +201,10 @@ viewRewards stats model =
             reward stats model.enemy
         attacksToKill =
             ceiling <| maxHealth model.enemy ./ attackDamage stats
-        killsPerSecond =
-            attackSpeed stats / toFloat attacksToKill
+        timePerKill =
+            timeToRespawn + toFloat attacksToKill / attackSpeed stats
         perSecond =
-            Currency.bundleMap (\cur -> toFloat cur * killsPerSecond)
+            Currency.bundleMap (\cur -> toFloat cur / timePerKill)
         item c =
             li []
                 [ text <| Format.currency c
@@ -196,10 +219,15 @@ maxHealth enemy =
     let l = enemy.level - 1
     in 100 + 18 * l + 2 * l ^ 2
 
+resetHealth : Enemy -> Enemy
 resetHealth enemy =
     { enemy
     | health = maxHealth enemy
     }
+
+timeToRespawn : Float
+timeToRespawn =
+    1
 
 reward : BattleStats.Model -> Enemy -> List Currency.Bundle
 reward stats enemy =
