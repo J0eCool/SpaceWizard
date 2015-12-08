@@ -23,10 +23,13 @@ type Growth
 type Cost
     = TotalCost Float Float Float
 
+type alias CostBundle =
+    (Currency.Type, Cost)
+
 type alias Stat =
     { level : Float
     , growth : Growth
-    , cost : Cost
+    , cost : CostBundle
     }
 
 type Action
@@ -58,7 +61,11 @@ init =
     , heldAction = Nothing
     }
 
-baseStatCost = TotalCost 0.5 3 (-4.5)
+baseStatCost : CostBundle
+baseStatCost =
+    ( Currency.Experience
+    , TotalCost 0.5 3 (-4.5)
+    )
 
 update : Action -> Model -> (Model, List Currency.Bundle)
 update action model =
