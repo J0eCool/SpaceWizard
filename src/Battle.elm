@@ -83,8 +83,11 @@ updateTick dT stats model =
                 |> min maxNumAttacks
         enemy =
             model.enemy
+        damage =
+            attackDamage stats - armor enemy
+                |> max 0
         updatedHealth =
-            enemy.health - numAttacks * attackDamage stats
+            enemy.health - numAttacks * damage
                 |> max 0
         didDie =
             not isRespawning && updatedHealth <= 0
@@ -182,16 +185,18 @@ view address stats model =
         [ h3 [] [text "Battle"]
         , viewLevel address model
         , div [] [text <| "Health: " ++ Format.int model.enemy.health]
+        , div [] [text <| "Amor: " ++ Format.int (armor model.enemy)]
         , ProgressBar.view healthBar
         , ProgressBar.view attackBar
         , div [] 
-            [checkbox address "Attack:" ToggleAttack model.isAttacking]
+            [checkbox address "Attack" ToggleAttack model.isAttacking]
         , div [] 
-            [checkbox address "Auto-progress:" ToggleAutoProgress model.autoProgress]
+            [checkbox address "Auto-progress" ToggleAutoProgress model.autoProgress]
         , div [] [text "Reward: "]
         , viewRewards stats model
         ]
 
+checkbox : Signal.Address Action -> String -> Action -> Bool -> Html
 checkbox address label action value =
     div []
         [ text <| label ++ ": "
@@ -227,8 +232,10 @@ viewRewards : BattleStats.Model -> Model -> Html
 viewRewards stats model =
     let currency =
             reward stats model.enemy
+        damage =
+            attackDamage stats - armor model.enemy
         attacksToKill =
-            ceiling <| maxHealth model.enemy ./ attackDamage stats
+            ceiling <| maxHealth model.enemy ./ damage
         timePerKill =
             timeToRespawn + toFloat attacksToKill / attackSpeed stats
         perSecond =
@@ -247,6 +254,11 @@ maxHealth enemy =
     let l = enemy.level - 1
     in 100 + 18 * l + 2 * l ^ 2
 
+armor : Enemy -> Int
+armor enemy =
+    let l = toFloat <| enemy.level - 1
+    in floor <| l * 4 + 0.5 * l ^ 1.5
+
 resetHealth : Enemy -> Enemy
 resetHealth enemy =
     { enemy
@@ -259,8 +271,9 @@ timeToRespawn =
 
 reward : BattleStats.Model -> Enemy -> List Currency.Bundle
 reward stats enemy =
-    let baseGold = 5 + enemy.level
-        baseExp = 9 + enemy.level ^ 2
+    let l = enemy.level
+        baseGold = 5 + 2 * l + floor ((toFloat l) ^ 1.5)
+        baseExp = 6 + 3 * l + l ^ 2
     in
     [   ( Currency.Experience
         , baseExp
