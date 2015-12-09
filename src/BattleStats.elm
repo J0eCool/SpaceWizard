@@ -13,6 +13,7 @@ type alias Model =
     { strength : Stat
     , speed : Stat
     , luck : Stat
+    , weapon : Stat
     , heldAction : Maybe TimedAction
     }
 
@@ -40,12 +41,13 @@ type TimedAction
     = UpgradeStrength
     | UpgradeSpeed
     | UpgradeLuck
+    | UpgradeWeapon
 
 init : Model
 init = 
     { strength =
         { level = 1
-        , growth = LinearGrowth 20 2
+        , growth = LinearGrowth 1 0.1
         , cost = baseStatCost
         }
     , speed =
@@ -57,6 +59,14 @@ init =
         { level = 1
         , growth = LinearGrowth 0 15
         , cost = baseStatCost
+        }
+    , weapon =
+        { level = 1
+        , growth = LinearGrowth 20 5
+        , cost =
+            ( Currency.Gold
+            , TotalCost 2 2 1
+            )
         }
     , heldAction = Nothing
     }
@@ -93,6 +103,10 @@ updateTick dT action model =
         UpgradeLuck ->
             ( { model | luck = levelUp dT model.luck }
             , [ cost dT model.luck ]
+            )
+        UpgradeWeapon ->
+            ( { model | weapon = levelUp dT model.weapon }
+            , [ cost dT model.weapon ]
             )
 
 view : Signal.Address Action -> Model -> Html
@@ -144,6 +158,7 @@ viewBaseStats address model =
                 [ ("Strength", .strength, UpgradeStrength)
                 , ("Speed", .speed, UpgradeSpeed)
                 , ("Luck", .luck, UpgradeLuck)
+                , ("Weapon", .weapon, UpgradeWeapon)
                 ]
     in ul [] items
 
@@ -160,6 +175,7 @@ viewDerivedStats model =
                 [ ("Attack Damage", i << attackDamage)
                 , ("Attack Speed", f << attackSpeed)
                 , ("DPS", \m -> f <| attackSpeed m * toFloat (attackDamage m))
+                , ("Weapon base damage", i << weaponDamage)
                 , ("Gold Bonus %", f << goldBonus)
                 ]
     in ul [] items
@@ -174,9 +190,10 @@ value stat =
 
 cost : Float -> Stat -> Currency.Bundle
 cost delta stat =
-    let cur = totalCostValue stat.level stat.cost
-        next = totalCostValue (stat.level + delta) stat.cost
-    in  ( Currency.Experience
+    let (type', cost) = stat.cost
+        cur = totalCostValue stat.level cost
+        next = totalCostValue (stat.level + delta) cost
+    in  ( type'
         , next - cur
         )
 
@@ -192,9 +209,15 @@ growthValue level growth =
         PowerGrowth lin powFac pow ->
             lin * level + powFac * (level - 1) ^ pow
 
+weaponDamage : Model -> Int
+weaponDamage model =
+    round <| value model.weapon
+
 attackDamage : Model -> Int
 attackDamage model =
-    round <| value model.strength
+    let wep = toFloat <| weaponDamage model
+        str = value model.strength
+    in round <| wep * str
 
 attackSpeed : Model -> Float
 attackSpeed model =
