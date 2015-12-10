@@ -2,7 +2,7 @@ module BattleStats where
 
 import Color
 import Html exposing (Html, div, h3, text, span, button, ul, li)
-import Html.Events exposing (onMouseDown, onMouseUp, onMouseLeave)
+import Html.Events exposing (onMouseDown, onMouseUp, onMouseEnter, onMouseLeave)
 
 import Currency
 import Format
@@ -15,6 +15,7 @@ type alias Model =
     , luck : Stat
     , weapon : Stat
     , heldAction : Maybe TimedAction
+    , hoveredUpgrade : Maybe TimedAction
     }
 
 type Growth
@@ -34,7 +35,9 @@ type alias Stat =
     }
 
 type Action
-    = SetHeld (Maybe TimedAction)
+    = SetHeld TimedAction
+    | SetHover TimedAction
+    | Release
     | Tick Float
 
 type TimedAction
@@ -69,6 +72,7 @@ init =
             )
         }
     , heldAction = Nothing
+    , hoveredUpgrade = Nothing
     }
 
 baseStatCost : CostBundle
@@ -79,35 +83,48 @@ baseStatCost =
 
 update : Action -> Model -> (Model, List Currency.Bundle)
 update action model =
-    case action of
+    let no m = (m, [])
+    in case action of
         SetHeld action ->
-            ({ model | heldAction = action }, [])
+            no { model | heldAction = Just action }
+        SetHover action ->
+            no { model | hoveredUpgrade = Just action }
+        Release ->
+            { model
+            | heldAction = Nothing
+            , hoveredUpgrade = Nothing
+            }
+            |> no
         Tick dT ->
             case model.heldAction of
                 Just act ->
-                    updateTick dT act model
+                    upgradeBy dT act model
                 Nothing ->
-                    (model, [])
+                    no model
 
-updateTick : Float -> TimedAction -> Model -> (Model, List Currency.Bundle)
-updateTick dT action model =
-    case action of
-        UpgradeStrength ->
-            ( { model | strength = levelUp dT model.strength }
-            , [ cost dT model.strength ]
-            )
-        UpgradeSpeed ->
-            ( { model | speed = levelUp dT model.speed }
-            , [ cost dT model.speed ]
-            )
-        UpgradeLuck ->
-            ( { model | luck = levelUp dT model.luck }
-            , [ cost dT model.luck ]
-            )
-        UpgradeWeapon ->
-            ( { model | weapon = levelUp dT model.weapon }
-            , [ cost dT model.weapon ]
-            )
+upgradeBy : Float -> TimedAction -> Model -> (Model, List Currency.Bundle)
+upgradeBy amount action model =
+    let stat =
+            case action of
+                UpgradeStrength -> model.strength
+                UpgradeSpeed -> model.speed
+                UpgradeLuck -> model.luck
+                UpgradeWeapon -> model.weapon
+        spent =
+            cost amount stat
+        updatedStat =
+            levelUp amount stat
+        updatedModel =
+            case action of
+                UpgradeStrength ->
+                    { model | strength = updatedStat }
+                UpgradeSpeed ->
+                    { model | speed = updatedStat }
+                UpgradeLuck ->
+                    { model | luck = updatedStat }
+                UpgradeWeapon ->
+                    { model | weapon = updatedStat }
+    in (updatedModel, [spent])
 
 view : Signal.Address Action -> Model -> Html
 view address model =
@@ -143,9 +160,10 @@ viewBaseStats address model =
                     , maxAmount = 1
                     }
                 , button
-                    [ onMouseDown address (SetHeld <| Just action)
-                    , onMouseUp address <| SetHeld Nothing
-                    , onMouseLeave address <| SetHeld Nothing
+                    [ onMouseDown address <| SetHeld action
+                    , onMouseEnter address <| SetHover action
+                    , onMouseUp address <| Release
+                    , onMouseLeave address <| Release
                     ]
                     [ text
                         <| "+1 ("
@@ -164,19 +182,35 @@ viewBaseStats address model =
 
 viewDerivedStats : Model -> Html
 viewDerivedStats model =
-    let viewStat (title, stat) =
-            li []
-                [ span [] [text <| title ++ ": " ++ stat model]
-                ]
-        i = Format.int
+    let upgradedModel =
+            case model.hoveredUpgrade of
+                Just action ->
+                    fst <| upgradeBy 1 action model
+                Nothing ->
+                    model
+        viewStat (title, format, stat) =
+            let curStat =
+                    stat model
+                diff =
+                    stat upgradedModel - curStat
+                diffSpan =
+                    if abs diff > 0.01 then
+                        [ span [] [text <| " (+" ++ format diff ++ ")"] ]
+                    else
+                        []
+            in li []
+                ([ span [] [text <| title ++ ": " ++ format curStat] ]
+                ++ diffSpan
+                )
+        i = Format.int << round
         f = Format.float
         items =
             List.map viewStat
-                [ ("Attack Damage", i << attackDamage)
-                , ("Attack Speed", f << attackSpeed)
-                , ("DPS", \m -> f <| attackSpeed m * toFloat (attackDamage m))
-                , ("Weapon base damage", i << weaponDamage)
-                , ("Gold Bonus %", f << goldBonus)
+                [ ("Attack Damage", i, toFloat << attackDamage)
+                , ("Attack Speed", f, attackSpeed)
+                , ("DPS", f, \m -> attackSpeed m * toFloat (attackDamage m))
+                , ("Weapon base damage", i, toFloat << weaponDamage)
+                , ("Gold Bonus %", f, goldBonus)
                 ]
     in ul [] items
 
