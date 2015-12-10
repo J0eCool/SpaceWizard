@@ -195,7 +195,13 @@ viewDerivedStats model =
                     stat upgradedModel - curStat
                 diffSpan =
                     if abs diff > 0.01 then
-                        [ span [] [text <| " (+" ++ format diff ++ ")"] ]
+                        [ span
+                            [style
+                                [ color <| Color.rgb 32 200 64 
+                                , fontWeight Bold
+                                ]
+                            ]
+                            [text <| " (+" ++ format diff ++ ")"] ]
                     else
                         []
             in li []

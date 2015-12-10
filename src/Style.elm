@@ -1,7 +1,7 @@
 module Style where
 
 import Char exposing (toCode, fromCode)
-import Color
+import Color exposing (Color, toRgb)
 import Html.Attributes as Attr
 import String
 import Vendor
@@ -69,10 +69,10 @@ margin1 m =
 
 -----------------------------------
 
-colorStr : Color.Color -> String
+colorStr : Color -> String
 colorStr color =
     let { red, green, blue } =
-            Color.toRgb color
+            toRgb color
         contents =
             [red, green, blue]
                 |> List.map toString
@@ -80,7 +80,11 @@ colorStr color =
                 |> String.concat
     in "rgb(" ++ contents ++ ")"
 
-backgroundColor : Color.Color -> Style
+color : Color -> Style
+color =
+    baseStyle "color" colorStr
+
+backgroundColor : Color -> Style
 backgroundColor =
     baseStyle "background-color" colorStr
 
@@ -121,3 +125,33 @@ verticalAlignStr align =
 verticalAlign : VerticalAlign -> Style
 verticalAlign =
     baseStyle "vertical-align" verticalAlignStr
+
+-----------------------------------
+
+type FontWeight
+    = NormalWeight
+    | Bold
+
+fontWeightStr : FontWeight -> String
+fontWeightStr weight =
+    case weight of
+        NormalWeight -> "normal"
+        Bold -> "bold"
+
+fontWeight : FontWeight -> Style
+fontWeight =
+    baseStyle "font-weight" fontWeightStr
+
+type FontStyle
+    = NormalStyle
+    | Italic
+
+fontStyleStr : FontStyle -> String
+fontStyleStr style =
+    case style of
+        NormalStyle -> "normal"
+        Italic -> "italic"
+
+fontStyle : FontStyle -> Style
+fontStyle =
+    baseStyle "font-style" fontStyleStr
