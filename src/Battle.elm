@@ -1,7 +1,6 @@
 module Battle where
 
 import Color
-import Char exposing (KeyCode)
 import Html exposing (Html, div, h3, text, ul, li, button, input)
 import Html.Attributes exposing (type', checked)
 import Html.Events exposing (onClick)
@@ -9,6 +8,7 @@ import Html.Events exposing (onClick)
 import BattleStats exposing (attackDamage, attackSpeed, goldBonusMultiplier)
 import Currency
 import Format
+import Keys exposing (Key(..), Arrow(..))
 import Operators exposing (..)
 import Widgets.ProgressBar as ProgressBar
 
@@ -28,7 +28,7 @@ type alias Enemy =
 
 type Action
     = Tick Float
-    | KeyPress KeyCode
+    | KeyPress Keys.Key
     | IncreaseLevel
     | DecreaseLevel
     | ToggleAttack
@@ -64,13 +64,12 @@ update action stats model =
             no { model | autoProgress = not model.autoProgress }
         KeyPress key ->
             case key of
-                39 ->
+                KeyArrow Right ->
                     update IncreaseLevel stats model
-                40 ->
+                KeyArrow Left ->
                     update DecreaseLevel stats model
                 _ ->
                     no model
-                    |> Debug.log ("butt" ++ toString key)
 
 updateTick : Float -> BattleStats.Model -> Model -> (Model, List Currency.Bundle)
 updateTick dT stats model =

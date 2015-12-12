@@ -14,6 +14,7 @@ import BattleStats
 import Currency
 import Format
 import Inventory
+import Keys
 
 type alias Model =
     { inventory : Inventory.Model
@@ -25,7 +26,7 @@ type Action
     = Tick Float
     | BattleAction Battle.Action
     | StatsAction BattleStats.Action
-    | KeyPress KeyCode
+    | KeyPress Keys.Key
 
 main : Signal Html
 main =
@@ -52,7 +53,7 @@ init =
 inputs : List (Signal Action)
 inputs =
     [ fps 60 |> Signal.map Tick
-    , Keyboard.presses |> Signal.map KeyPress
+    , Keys.pressed |> Signal.map KeyPress
     ]
 
 view : Signal.Address Action -> Model -> Html
