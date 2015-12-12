@@ -1,7 +1,9 @@
+import Char exposing (KeyCode)
 import Effects
 import Html exposing (Html, span, div, button, text, h3, ul, li)
 import Html.Attributes exposing (class)
 import Html.Events exposing (onClick)
+import Keyboard
 import Signal
 import StartApp
 import String
@@ -23,6 +25,7 @@ type Action
     = Tick Float
     | BattleAction Battle.Action
     | StatsAction BattleStats.Action
+    | KeyPress KeyCode
 
 main : Signal Html
 main =
@@ -49,6 +52,7 @@ init =
 inputs : List (Signal Action)
 inputs =
     [ fps 60 |> Signal.map Tick
+    , Keyboard.presses |> Signal.map KeyPress
     ]
 
 view : Signal.Address Action -> Model -> Html
@@ -76,14 +80,20 @@ update action model =
                     List.map (\f -> update <| f dT) wrapped
             in List.foldl (\f m -> f m) model actions
         BattleAction bAction ->
-            let (battle', battleRewards) = Battle.update bAction model.stats model.battle
+            let (battle', battleRewards) =
+                Battle.update bAction model.stats model.battle
             in { model
                 | battle = battle'
                 , inventory = Inventory.update battleRewards model.inventory
                 }
         StatsAction sAction ->
-            let (stats', statCost) = BattleStats.update sAction model.stats
+            let (stats', statCost) =
+                BattleStats.update sAction model.stats
             in tryPurchase statCost model { model | stats = stats' }
+        KeyPress key ->
+            let battle' =
+                fst <| Battle.update (Battle.KeyPress key) model.stats model.battle
+            in { model | battle = battle' }
 
 tryPurchase cost model successfulModel =
     let result =
