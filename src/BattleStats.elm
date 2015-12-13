@@ -12,6 +12,7 @@ import Widgets.ProgressBar as ProgressBar
 type alias Model =
     { strength : Stat
     , speed : Stat
+    , vitality : Stat
     , luck : Stat
     , weapon : Stat
     , heldAction : Maybe TimedAction
@@ -43,28 +44,38 @@ type Action
 type TimedAction
     = UpgradeStrength
     | UpgradeSpeed
+    | UpgradeVitality
     | UpgradeLuck
     | UpgradeWeapon
 
 init : Model
-init = 
+init =
+    initWith 1 1 1 1 1
+
+initWith : Float -> Float -> Float -> Float -> Float -> Model
+initWith str spd vit lck wep =
     { strength =
-        { level = 1
+        { level = str
         , growth = LinearGrowth 1 0.1
         , cost = baseStatCost
         }
     , speed =
-        { level = 1
+        { level = spd
         , growth = LinearGrowth 1.2 0.1
         , cost = baseStatCost
         }
+    , vitality =
+        { level = vit
+        , growth = LinearGrowth 100 10
+        , cost = baseStatCost
+        }
     , luck =
-        { level = 1
+        { level = lck
         , growth = LinearGrowth 0 15
         , cost = baseStatCost
         }
     , weapon =
-        { level = 1
+        { level = wep
         , growth = LinearGrowth 20 5
         , cost =
             ( Currency.Gold
@@ -108,6 +119,7 @@ upgradeBy amount action model =
             case action of
                 UpgradeStrength -> model.strength
                 UpgradeSpeed -> model.speed
+                UpgradeVitality -> model.vitality
                 UpgradeLuck -> model.luck
                 UpgradeWeapon -> model.weapon
         spent =
@@ -120,6 +132,8 @@ upgradeBy amount action model =
                     { model | strength = updatedStat }
                 UpgradeSpeed ->
                     { model | speed = updatedStat }
+                UpgradeVitality ->
+                    { model | vitality = updatedStat }
                 UpgradeLuck ->
                     { model | luck = updatedStat }
                 UpgradeWeapon ->
@@ -175,6 +189,7 @@ viewBaseStats address model =
             List.map viewStat
                 [ ("Strength", .strength, UpgradeStrength)
                 , ("Speed", .speed, UpgradeSpeed)
+                , ("Vitality", .vitality, UpgradeVitality)
                 , ("Luck", .luck, UpgradeLuck)
                 , ("Weapon", .weapon, UpgradeWeapon)
                 ]
@@ -212,7 +227,8 @@ viewDerivedStats model =
         f = Format.float
         items =
             List.map viewStat
-                [ ("Attack Damage", i, toFloat << attackDamage)
+                [ ("Max Health", i, toFloat << maxHealth)
+                , ("Attack Damage", i, toFloat << attackDamage)
                 , ("Attack Speed", f, attackSpeed)
                 , ("DPS", f, \m -> attackSpeed m * toFloat (attackDamage m))
                 , ("Weapon base damage", i, toFloat << weaponDamage)
@@ -262,6 +278,10 @@ attackDamage model =
 attackSpeed : Model -> Float
 attackSpeed model =
     value model.speed
+
+maxHealth : Model -> Int
+maxHealth model =
+    round <| value model.vitality
 
 goldBonus : Model -> Float
 goldBonus model =
