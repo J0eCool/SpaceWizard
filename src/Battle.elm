@@ -27,7 +27,8 @@ type alias Enemy =
     }
 
 type Action
-    = Tick Float
+    = NoOp
+    | Tick Float
     | KeyPress Keys.Key
     | IncreaseLevel
     | DecreaseLevel
@@ -52,6 +53,8 @@ update : Action -> BattleStats.Model -> Model -> (Model, List Currency.Bundle)
 update action stats model =
     let no m = (m, [])
     in case action of
+        NoOp ->
+            no model
         Tick dT ->
             updateTick dT stats model
         IncreaseLevel ->
@@ -63,13 +66,15 @@ update action stats model =
         ToggleAutoProgress ->
             no { model | autoProgress = not model.autoProgress }
         KeyPress key ->
-            case key of
-                KeyArrow Right ->
-                    update IncreaseLevel stats model
-                KeyArrow Left ->
-                    update DecreaseLevel stats model
-                _ ->
-                    no model
+            update (keyboardAction key) stats model
+
+keyboardAction : Key -> Action
+keyboardAction key =
+    case key of
+        KeyArrow Right -> IncreaseLevel
+        KeyArrow Left -> DecreaseLevel
+        KeyChar ' ' -> ToggleAttack
+        _ -> NoOp
 
 updateTick : Float -> BattleStats.Model -> Model -> (Model, List Currency.Bundle)
 updateTick dT stats model =
