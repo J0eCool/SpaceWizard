@@ -19,6 +19,9 @@ type alias Model =
   , hoveredUpgrade : Maybe TimedAction
   }
 
+type WrapModel =
+  WrapModel Model
+
 type Growth
   = LinearGrowth Float Float
   | PowerGrowth Float Float Float
@@ -33,7 +36,11 @@ type alias Stat =
   { level : Float
   , growth : Growth
   , cost : CostBundle
+  , setter : WrapStat -> WrapModel -> WrapModel
   }
+
+type WrapStat =
+  WrapStat Stat
 
 type Action
   = SetHeld TimedAction
@@ -59,21 +66,29 @@ initWith str spd vit lck wep =
     { level = str
     , growth = LinearGrowth 1 0.1
     , cost = baseStatCost
+    , setter = \(WrapStat stat) (WrapModel model) ->
+        (WrapModel { model | strength = stat })
     }
   , speed =
     { level = spd
     , growth = LinearGrowth 1.2 0.1
     , cost = baseStatCost
+    , setter = \(WrapStat stat) (WrapModel model) ->
+        (WrapModel { model | speed = stat })
     }
   , vitality =
     { level = vit
     , growth = LinearGrowth 100 10
     , cost = baseStatCost
+    , setter = \(WrapStat stat) (WrapModel model) ->
+        (WrapModel { model | vitality = stat })
     }
   , luck =
     { level = lck
     , growth = LinearGrowth 0 15
     , cost = baseStatCost
+    , setter = \(WrapStat stat) (WrapModel model) ->
+        (WrapModel { model | luck = stat })
     }
   , weapon =
     { level = wep
@@ -82,6 +97,8 @@ initWith str spd vit lck wep =
       ( Currency.Gold
       , TotalCost 2 2 1
       )
+    , setter = \(WrapStat stat) (WrapModel model) ->
+        (WrapModel { model | weapon = stat })
     }
   , heldAction = Nothing
   , hoveredUpgrade = Nothing
@@ -90,7 +107,7 @@ initWith str spd vit lck wep =
 baseStatCost : CostBundle
 baseStatCost =
   ( Currency.Experience
-  , TotalCost 0.5 3 (-4.5)
+  , TotalCost 0 1 (-2)
   )
 
 update : Action -> Model -> (Model, List Currency.Bundle)
@@ -124,7 +141,7 @@ upgradeBy amount action model =
         UpgradeLuck -> model.luck
         UpgradeWeapon -> model.weapon
     spent =
-      cost amount stat
+      cost amount stat model
     updatedStat =
       levelUp amount stat
     updatedModel =
@@ -155,7 +172,7 @@ viewBaseStats address model =
     viewStat (title, field, action) =
       let
         stat = field model
-        curCost = cost 1 stat
+        curCost = cost 1 stat model
       in li []
         [ span 
           [ style
@@ -232,7 +249,8 @@ viewDerivedStats model =
     f = Format.float
     items =
       List.map viewStat
-        [ ("Max Health", i, toFloat << maxHealth)
+        [ ("Level", f, level)
+        , ("Max Health", i, toFloat << maxHealth)
         , ("Attack Damage", i, toFloat << attackDamage)
         , ("Attack Speed", f, attackSpeed)
         , ("DPS", f, \m -> attackSpeed m * toFloat (attackDamage m))
@@ -249,19 +267,56 @@ value : Stat -> Float
 value stat =
   growthValue stat.level stat.growth
 
-cost : Float -> Stat -> Currency.Bundle
-cost delta stat =
+cost : Float -> Stat -> Model -> Currency.Bundle
+cost delta stat model =
   let
-    (type', cost) = stat.cost
-    cur = totalCostValue stat.level cost
-    next = totalCostValue (stat.level + delta) cost
-  in  ( type'
+    wrapModel = WrapModel model
+    cur = totalCostValue wrapModel
+    nextStat = WrapStat { stat | level = stat.level + delta }
+    next = totalCostValue (stat.setter nextStat wrapModel)
+  in
+    ( Currency.Experience
     , next - cur
     )
 
-totalCostValue : Float -> Cost -> Int
-totalCostValue level (TotalCost a b c) =
-  floor <| level * (c + level * (b + level * a)) -- ax^3 + bx^2 + cx
+allStatFields : List (Model -> Stat)
+allStatFields =
+  [ .strength
+  , .speed
+  , .vitality
+  , .luck
+  ]
+
+allStats : Model -> List Stat
+allStats model =
+  allStatFields
+    |> List.map (\f -> f model)
+
+
+level : Model -> Float
+level model =
+  allStats model
+    |> List.map .level
+    |> List.sum
+    |> flip (/) 4
+
+totalCostValue : WrapModel -> Int
+totalCostValue (WrapModel model) =
+  let
+    (TotalCost a b c) =
+      snd baseStatCost
+    cost stat =
+      let l = stat.level
+      in l * (c + l * (b + l * a)) -- ax^3 + bx^2 + cx
+    totalLevel =
+      level model
+    baseCost =
+      allStats model
+        |> List.map cost
+        |> List.sum
+    totalCost =
+      totalLevel * baseCost
+  in floor totalCost
 
 growthValue : Float -> Growth -> Float
 growthValue level growth =
