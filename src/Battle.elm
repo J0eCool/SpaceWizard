@@ -37,11 +37,13 @@ type Action
 
 init : Model
 init =
-  let enemy = 
-    { level = 1
-    , health = 0
-    } 
-  in  { enemy = { enemy | health = maxHealth enemy }
+  let
+    enemy = 
+      { level = 1
+      , health = 0
+      } 
+  in
+    { enemy = { enemy | health = maxHealth enemy }
     , highestLevelBeaten = 0
     , attackTimer = 0
     , isAttacking = True

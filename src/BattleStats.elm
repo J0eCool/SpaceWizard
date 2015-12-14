@@ -39,6 +39,7 @@ type Action
   = SetHeld TimedAction
   | SetHover TimedAction
   | Release
+  | MoveOut
   | Tick Float
 
 type TimedAction
@@ -101,11 +102,10 @@ update action model =
     SetHover action ->
       no { model | hoveredUpgrade = Just action }
     Release ->
-      { model
-      | heldAction = Nothing
-      , hoveredUpgrade = Nothing
-      }
-      |> no
+      no { model | heldAction = Nothing }
+    MoveOut ->
+      { model | hoveredUpgrade = Nothing }
+        |> update Release
     Tick dT ->
       case model.heldAction of
         Just act ->
@@ -180,7 +180,7 @@ viewBaseStats address model =
           [ onMouseDown address <| SetHeld action
           , onMouseEnter address <| SetHover action
           , onMouseUp address <| Release
-          , onMouseLeave address <| Release
+          , onMouseLeave address <| MoveOut
           ]
           [ text
             <| "+1 ("
