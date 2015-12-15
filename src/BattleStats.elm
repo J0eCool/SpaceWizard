@@ -50,11 +50,7 @@ type Action
   | Tick Float
 
 type TimedAction
-  = UpgradeStrength
-  | UpgradeSpeed
-  | UpgradeVitality
-  | UpgradeLuck
-  | UpgradeWeapon
+  = Upgrade (Model -> Stat)
 
 init : Model
 init =
@@ -135,27 +131,14 @@ upgradeBy amount action model =
   let
     stat =
       case action of
-        UpgradeStrength -> model.strength
-        UpgradeSpeed -> model.speed
-        UpgradeVitality -> model.vitality
-        UpgradeLuck -> model.luck
-        UpgradeWeapon -> model.weapon
+        Upgrade field ->
+          field model
     spent =
       cost amount stat model
     updatedStat =
       levelUp amount stat
-    updatedModel =
-      case action of
-        UpgradeStrength ->
-          { model | strength = updatedStat }
-        UpgradeSpeed ->
-          { model | speed = updatedStat }
-        UpgradeVitality ->
-          { model | vitality = updatedStat }
-        UpgradeLuck ->
-          { model | luck = updatedStat }
-        UpgradeWeapon ->
-          { model | weapon = updatedStat }
+    (WrapModel updatedModel) =
+      stat.setter (WrapStat updatedStat) (WrapModel model)
   in (updatedModel, [spent])
 
 view : Signal.Address Action -> Model -> Html
@@ -169,10 +152,11 @@ view address model =
 viewBaseStats : Signal.Address Action -> Model -> Html
 viewBaseStats address model =
   let
-    viewStat (title, field, action) =
+    viewStat (title, field) =
       let
         stat = field model
         curCost = cost 1 stat model
+        action = Upgrade field
       in li []
         [ span 
           [ style
@@ -207,11 +191,11 @@ viewBaseStats address model =
         ]
     items =
       List.map viewStat
-        [ ("Strength", .strength, UpgradeStrength)
-        , ("Speed", .speed, UpgradeSpeed)
-        , ("Vitality", .vitality, UpgradeVitality)
-        , ("Luck", .luck, UpgradeLuck)
-        , ("Weapon", .weapon, UpgradeWeapon)
+        [ ("Strength", .strength)
+        , ("Speed", .speed)
+        , ("Vitality", .vitality)
+        , ("Luck", .luck)
+        , ("Weapon", .weapon)
         ]
   in ul [] items
 
