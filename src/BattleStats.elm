@@ -51,6 +51,7 @@ type Action
 
 type TimedAction
   = Upgrade (Model -> Stat)
+  | LimitedUpgrade Int (Model -> Stat)
 
 init : Model
 init =
@@ -129,14 +130,20 @@ update action model =
 upgradeBy : Float -> TimedAction -> Model -> (Model, List Currency.Bundle)
 upgradeBy amount action model =
   let
-    stat =
+    (limitedAmount, stat) =
       case action of
         Upgrade field ->
-          field model
+          (amount, field model)
+        LimitedUpgrade nextLevel field ->
+          let stat = field model
+          in
+            ( min amount <| toFloat nextLevel - stat.level
+            , stat
+            )
     spent =
-      cost amount stat model
+      cost limitedAmount stat model
     updatedStat =
-      levelUp amount stat
+      levelUp limitedAmount stat
     (WrapModel updatedModel) =
       stat.setter (WrapStat updatedStat) (WrapModel model)
   in (updatedModel, [spent])
@@ -154,16 +161,37 @@ viewBaseStats address model =
   let
     viewStat (title, field) =
       let
-        stat = field model
-        curCost = cost 1 stat model
-        action = Upgrade field
-      in li []
+        stat =
+          field model
+        curCost =
+          cost 1 stat model
+        upgradeButton delta label action =
+          let curCost =
+            cost delta stat model
+          in
+            button
+            [ onMouseDown address <| SetHeld action
+            , onMouseEnter address <| SetHover action
+            , onMouseUp address <| Release
+            , onMouseLeave address <| MoveOut
+            ]
+            [ text
+              <| label
+              ++ " ("
+              ++ Format.currency curCost
+              ++ ")"
+            ]
+        next =
+          ceiling <| stat.level + 0.000001
+        toNext =
+          toFloat next - stat.level
+      in
+        li []
         [ span 
           [ style
             [ display InlineBlock
             , width <| Px 120
             ]
-
           ]
           [ text
             <| title ++ ": "
@@ -177,17 +205,8 @@ viewBaseStats address model =
           , curAmount = stat.level - toFloat (floor stat.level)
           , maxAmount = 1
           }
-        , button
-          [ onMouseDown address <| SetHeld action
-          , onMouseEnter address <| SetHover action
-          , onMouseUp address <| Release
-          , onMouseLeave address <| MoveOut
-          ]
-          [ text
-            <| "+1 ("
-            ++ Format.currency curCost
-            ++ ")"
-          ]
+        , upgradeButton 1 "Upgrade" (Upgrade field)
+        , upgradeButton toNext ("To " ++ Format.int next) (LimitedUpgrade next field)
         ]
     items =
       List.map viewStat
