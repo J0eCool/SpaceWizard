@@ -17,6 +17,7 @@ type alias Model =
   , weapon : Stat
   , heldAction : Maybe TimedAction
   , hoveredUpgrade : Maybe TimedAction
+  , upgradeVelocity : Float
   }
 
 type WrapModel =
@@ -99,12 +100,13 @@ initWith str spd vit lck wep =
     }
   , heldAction = Nothing
   , hoveredUpgrade = Nothing
+  , upgradeVelocity = 0
   }
 
 baseStatCost : CostBundle
 baseStatCost =
   ( Currency.Experience
-  , TotalCost 0 1 (-2)
+  , TotalCost 0 1 0
   )
 
 update : Action -> Model -> (Model, List Currency.Bundle)
@@ -116,14 +118,19 @@ update action model =
     SetHover action ->
       no { model | hoveredUpgrade = Just action }
     Release ->
-      no { model | heldAction = Nothing }
+      no { model
+        | heldAction = Nothing
+        , upgradeVelocity = 0
+        }
     MoveOut ->
       { model | hoveredUpgrade = Nothing }
         |> update Release
     Tick dT ->
       case model.heldAction of
         Just act ->
-          upgradeBy dT act model
+          let velModel =
+            { model | upgradeVelocity = model.upgradeVelocity + dT }
+          in upgradeBy (dT * velModel.upgradeVelocity) act velModel
         Nothing ->
           no model
 
