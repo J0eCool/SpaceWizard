@@ -43,12 +43,15 @@ app =
 
 init : (Model, Effects.Effects Action)
 init =
-  ( { inventory = Inventory.init
-    , battle = Battle.init
-    , stats = BattleStats.init
-    }
-  , Effects.none
-  )
+  let
+    stats = BattleStats.init
+  in
+    ( { inventory = Inventory.init
+      , battle = Battle.init stats
+      , stats = stats
+      }
+    , Effects.none
+    )
 
 inputs : List (Signal Action)
 inputs =

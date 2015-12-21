@@ -355,6 +355,10 @@ maxHealth : Model -> Int
 maxHealth model =
   round <| value model.vitality
 
+armor : Model -> Int
+armor model =
+  0
+
 goldBonus : Model -> Float
 goldBonus model =
   value model.luck

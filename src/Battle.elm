@@ -13,17 +13,18 @@ import Operators exposing (..)
 import Widgets.ProgressBar as ProgressBar
 
 type alias Model =
-  { enemy : Enemy
+  { player : Entity
+  , enemy : Entity
+  , enemyLevel : Int
   , highestLevelBeaten : Int
-  , attackTimer : Float
   , isAttacking : Bool
   , respawnTimer : Float
   , autoProgress : Bool
   }
 
-type alias Enemy =
-  { level : Int
-  , health : Int
+type alias Entity =
+  { health : Int
+  , attackTimer : Float
   }
 
 type Action
@@ -35,21 +36,24 @@ type Action
   | ToggleAttack
   | ToggleAutoProgress
 
-init : Model
-init =
+init : BattleStats.Model -> Model
+init stats =
   let
     enemy = 
-      { level = 1
-      , health = 0
-      } 
+      { health = 0
+      , attackTimer = 0
+      }
   in
-    { enemy = { enemy | health = maxHealth enemy }
+    { player = enemy
+    , enemy = enemy
+    , enemyLevel = 1
     , highestLevelBeaten = 0
-    , attackTimer = 0
     , isAttacking = True
     , respawnTimer = 0
     , autoProgress = False
     }
+    |> resetEnemyHealth
+    |> resetPlayerHealth stats
 
 update : Action -> BattleStats.Model -> Model -> (Model, List Currency.Bundle)
 update action stats model =
@@ -88,7 +92,7 @@ updateTick dT stats model =
     dIf cond =
       if cond then dT else 0
     attackTimer =
-      model.attackTimer + dIf canAttack
+      model.player.attackTimer + dIf canAttack
     respawnTimer =
       model.respawnTimer + dIf isRespawning
     timeToAttack =
@@ -99,10 +103,17 @@ updateTick dT stats model =
       attackTimer / timeToAttack
         |> floor
         |> min maxNumAttacks
+    updatedAttackTimer =
+      if numAttacks >= maxNumAttacks || isRespawning then
+        0
+      else
+        attackTimer - toFloat numAttacks * timeToAttack
+    player =
+      model.player
     enemy =
       model.enemy
     damage =
-      attackDamage stats - armor enemy
+      attackDamage stats - enemyArmor model
         |> max 0
     updatedHealth =
       enemy.health - numAttacks * damage
@@ -113,41 +124,43 @@ updateTick dT stats model =
       isRespawning && respawnTimer > timeToRespawn
     highestLevelBeaten =
       if didDie then
-        max model.highestLevelBeaten enemy.level
+        max model.highestLevelBeaten model.enemyLevel
       else
         model.highestLevelBeaten
     level =
       if model.autoProgress && didDie then
         highestLevelBeaten + 1
       else
-        enemy.level
+        model.enemyLevel
     updatedEnemy =
       { enemy
       | health =
         if didRespawn then
-          maxHealth model.enemy
+          maxEnemyHealth model
         else
           updatedHealth
-      , level = level
+      }
+    updatedPlayer =
+      { player
+      | attackTimer = updatedAttackTimer
       }
   in ( { model
-      | attackTimer =
-        if numAttacks >= maxNumAttacks || isRespawning then
-          0
-        else
-          attackTimer - toFloat numAttacks * timeToAttack
-      , respawnTimer =
-        if didRespawn then
-          0
-        else
-          respawnTimer
+      | respawnTimer =
+          if didRespawn then
+            0
+          else
+            respawnTimer
       , enemy =
-        updatedEnemy
+          updatedEnemy
+      , enemyLevel =
+          level
+      , player =
+          updatedPlayer
       , highestLevelBeaten =
-        highestLevelBeaten
+          highestLevelBeaten
       }
     ,   if didDie then
-        reward stats model.enemy
+        reward stats model
       else
         []
     )
@@ -155,45 +168,33 @@ updateTick dT stats model =
 updateEnemyLevel : Int -> Model -> (Model, List Currency.Bundle)
 updateEnemyLevel diff model =
   let
-    enemy = model.enemy
     newLevel =
-      enemy.level + diff
+      model.enemyLevel + diff
         |> clamp 1 (model.highestLevelBeaten + 1)
-  in (if enemy.level == newLevel then
-      model
-    else
-      { model
-      | enemy =
-        { enemy
-        | level = newLevel
+    player =
+      model.player
+    updatedPlayer =
+      { player
+      | attackTimer = 0
+      }
+  in
+    ( if model.enemyLevel == newLevel then
+        model
+      else
+        { model
+        | enemyLevel = newLevel
+        , player = updatedPlayer
         }
-        |>  if enemy.health > 0 then
-            resetHealth
+        |>
+          if model.enemy.health > 0 then
+            resetEnemyHealth
           else
             identity
-      , attackTimer = 0
-      }
     , [])
 
 view : Signal.Address Action -> BattleStats.Model -> Model -> Html
 view address stats model =
   let
-    healthBar =
-      { width = 300
-      , height = 20
-      , curAmount = toFloat <| model.enemy.health
-      , maxAmount = toFloat <| maxHealth model.enemy
-      , color = Color.rgb 240 32 32
-      , background = Color.rgb 128 16 16
-      }
-    attackBar =
-      { width = 300
-      , height = 12
-      , curAmount = model.attackTimer
-      , maxAmount = 1 / attackSpeed stats
-      , color = Color.rgb 255 0 255
-      , background = Color.rgb 32 32 32
-      }
     attackText =
       if model.isAttacking then
         "Pause"
@@ -201,13 +202,27 @@ view address stats model =
         "Attack"
     attackButton =
       button [onClick address ToggleAttack] [text attackText]
+    playerDiv =
+      viewEntity
+        "Player"
+        { maxHealth = BattleStats.maxHealth stats
+        , attackSpeed = BattleStats.attackSpeed stats
+        , armor = BattleStats.armor stats
+        }
+        model.player
+    enemyDiv =
+      viewEntity
+        "Enemy"
+        { maxHealth = maxEnemyHealth model
+        , attackSpeed = 1
+        , armor = enemyArmor model
+        }
+        model.enemy
   in div []
     [ h3 [] [text "Battle"]
     , viewLevel address model
-    , div [] [text <| "Health: " ++ Format.int model.enemy.health]
-    , div [] [text <| "Amor: " ++ Format.int (armor model.enemy)]
-    , ProgressBar.view healthBar
-    , ProgressBar.view attackBar
+    , playerDiv
+    , enemyDiv
     , div [] 
       [checkbox address "Attack" ToggleAttack model.isAttacking]
     , div [] 
@@ -215,6 +230,32 @@ view address stats model =
     , div [] [text "Reward: "]
     , viewRewards stats model
     ]
+
+viewEntity title stats entity =
+    let
+      healthBar =
+        { width = 300
+        , height = 20
+        , curAmount = toFloat <| entity.health
+        , maxAmount = toFloat <| stats.maxHealth
+        , color = Color.rgb 240 32 32
+        , background = Color.rgb 128 16 16
+        }
+      attackBar =
+        { width = 300
+        , height = 12
+        , curAmount = entity.attackTimer
+        , maxAmount = 1 / stats.attackSpeed
+        , color = Color.rgb 255 0 255
+        , background = Color.rgb 32 32 32
+        }
+    in div []
+      [ div [] [text title]
+      , div [] [text <| "Health: " ++ Format.int entity.health]
+      , div [] [text <| "Amor: " ++ Format.int stats.armor]
+      , ProgressBar.view healthBar
+      , ProgressBar.view attackBar
+      ]
 
 checkbox : Signal.Address Action -> String -> Action -> Bool -> Html
 checkbox address label action value =
@@ -238,14 +279,14 @@ viewLevel address model =
         []
     decButton =
       levelButton DecreaseLevel "-"
-        <| model.enemy.level > 1
+        <| model.enemyLevel > 1
     incButton =
       levelButton IncreaseLevel "+"
-        <| model.enemy.level <= model.highestLevelBeaten
+        <| model.enemyLevel <= model.highestLevelBeaten
   in div []
     ( [ text <| "Enemy level:"]
     ++ decButton
-    ++ [text <| Format.int model.enemy.level]
+    ++ [text <| Format.int model.enemyLevel]
     ++ incButton
     )
 
@@ -253,11 +294,11 @@ viewRewards : BattleStats.Model -> Model -> Html
 viewRewards stats model =
   let
     currency =
-      reward stats model.enemy
+      reward stats model
     damage =
-      attackDamage stats - armor model.enemy
+      attackDamage stats - enemyArmor model
     attacksToKill =
-      ceiling <| maxHealth model.enemy ./ damage
+      ceiling <| maxEnemyHealth model ./ damage
     timePerKill =
       timeToRespawn + toFloat attacksToKill / attackSpeed stats
     perSecond =
@@ -271,30 +312,46 @@ viewRewards stats model =
         ]
   in ul [] <| List.map item currency
 
-maxHealth : Enemy -> Int
-maxHealth enemy =
-  let l = enemy.level - 1
+maxEnemyHealth : Model -> Int
+maxEnemyHealth model =
+  let l = model.enemyLevel - 1
   in 100 + 18 * l + 2 * l ^ 2
 
-armor : Enemy -> Int
-armor enemy =
-  let l = toFloat <| enemy.level - 1
+enemyArmor : Model -> Int
+enemyArmor model =
+  let l = toFloat <| model.enemyLevel - 1
   in floor <| l * 4 + 0.5 * l ^ 1.5
 
-resetHealth : Enemy -> Enemy
-resetHealth enemy =
-  { enemy
-  | health = maxHealth enemy
-  }
+resetEnemyHealth : Model -> Model
+resetEnemyHealth model =
+  let
+    enemy =
+      model.enemy
+    updatedEnemy =
+      { enemy
+      | health = maxEnemyHealth model
+      }
+  in { model | enemy = updatedEnemy }
+
+resetPlayerHealth : BattleStats.Model -> Model -> Model
+resetPlayerHealth stats model =
+  let
+    player =
+      model.player
+    updatedPlayer =
+      { player
+      | health = BattleStats.maxHealth stats
+      }
+  in { model | player = updatedPlayer }
 
 timeToRespawn : Float
 timeToRespawn =
   1
 
-reward : BattleStats.Model -> Enemy -> List Currency.Bundle
-reward stats enemy =
+reward : BattleStats.Model -> Model -> List Currency.Bundle
+reward stats model =
   let
-    l = enemy.level
+    l = model.enemyLevel
     baseGold = 5 + 2 * l + floor ((toFloat l) ^ 1.5)
     baseExp = 6 + 3 * l + l ^ 2
   in
