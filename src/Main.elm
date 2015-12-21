@@ -3,6 +3,7 @@ import Effects
 import Html exposing (Html, span, div, button, text, h3, ul, li)
 import Html.Attributes exposing (class)
 import Html.Events exposing (onClick)
+import Html.Lazy exposing (lazy)
 import Keyboard
 import Signal
 import StartApp
@@ -67,9 +68,9 @@ view address model =
     shopAddress =
       Signal.forwardTo address StatsAction
   in div []
-    [ Inventory.view model.inventory
+    [ lazy Inventory.view model.inventory
     , Battle.view battleAddress model.stats model.battle
-    , BattleStats.view shopAddress model.stats
+    , lazy (BattleStats.view shopAddress) model.stats
     ]
 
 update : Action -> Model -> Model
