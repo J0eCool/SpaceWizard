@@ -20,6 +20,13 @@ type alias Model =
   , upgradeVelocity : Float
   }
 
+type alias Derived =
+  { maxHealth : Int
+  , attackDamage : Int
+  , attackSpeed : Float
+  , armor : Int
+  }
+
 type WrapModel =
   WrapModel Model
 
@@ -366,3 +373,11 @@ goldBonus model =
 goldBonusMultiplier : Model -> Float
 goldBonusMultiplier model =
   1 + goldBonus model / 100
+
+derived : Model -> Derived
+derived model =
+  { maxHealth = maxHealth model
+  , attackDamage = attackDamage model
+  , attackSpeed = attackSpeed model
+  , armor = armor model
+  }

@@ -68,8 +68,8 @@ view address model =
     shopAddress =
       Signal.forwardTo address StatsAction
   in div []
-    [ lazy Inventory.view model.inventory
-    , Battle.view battleAddress model.stats model.battle
+    [ Battle.view battleAddress model.stats model.battle
+    , lazy Inventory.view model.inventory
     , lazy (BattleStats.view shopAddress) model.stats
     ]
 

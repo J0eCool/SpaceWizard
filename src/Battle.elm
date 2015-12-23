@@ -80,6 +80,7 @@ keyboardAction key =
     KeyArrow Right -> IncreaseLevel
     KeyArrow Left -> DecreaseLevel
     KeyChar ' ' -> ToggleAttack
+    KeyChar 'a' -> ToggleAutoProgress
     _ -> NoOp
 
 updateTick : Float -> BattleStats.Model -> Model -> (Model, List Currency.Bundle)
@@ -202,27 +203,11 @@ view address stats model =
         "Attack"
     attackButton =
       button [onClick address ToggleAttack] [text attackText]
-    playerDiv =
-      viewEntity
-        "Player"
-        { maxHealth = BattleStats.maxHealth stats
-        , attackSpeed = BattleStats.attackSpeed stats
-        , armor = BattleStats.armor stats
-        }
-        model.player
-    enemyDiv =
-      viewEntity
-        "Enemy"
-        { maxHealth = maxEnemyHealth model
-        , attackSpeed = 1
-        , armor = enemyArmor model
-        }
-        model.enemy
   in div []
     [ h3 [] [text "Battle"]
     , viewLevel address model
-    , playerDiv
-    , enemyDiv
+    , viewEntity "Player" (BattleStats.derived stats) model.player
+    , viewEntity "Enemy" (enemyDerived model) model.enemy
     , div [] 
       [checkbox address "Attack" ToggleAttack model.isAttacking]
     , div [] 
@@ -231,6 +216,7 @@ view address stats model =
     , viewRewards stats model
     ]
 
+viewEntity : String -> BattleStats.Derived -> Entity -> Html
 viewEntity title stats entity =
     let
       healthBar =
@@ -252,6 +238,7 @@ viewEntity title stats entity =
     in div []
       [ div [] [text title]
       , div [] [text <| "Health: " ++ Format.int entity.health]
+      , div [] [text <| "Damage: " ++ Format.int stats.attackDamage]
       , div [] [text <| "Amor: " ++ Format.int stats.armor]
       , ProgressBar.view healthBar
       , ProgressBar.view attackBar
@@ -321,6 +308,14 @@ enemyArmor : Model -> Int
 enemyArmor model =
   let l = toFloat <| model.enemyLevel - 1
   in floor <| l * 4 + 0.5 * l ^ 1.5
+
+enemyDerived : Model -> BattleStats.Derived
+enemyDerived model =
+  { maxHealth = maxEnemyHealth model
+  , attackDamage = 5
+  , attackSpeed = 1
+  , armor = enemyArmor model
+  }
 
 resetEnemyHealth : Model -> Model
 resetEnemyHealth model =
