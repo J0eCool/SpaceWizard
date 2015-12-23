@@ -22,6 +22,7 @@ type alias Model =
 
 type alias Derived =
   { maxHealth : Int
+  , healthRegen : Float
   , attackDamage : Int
   , attackSpeed : Float
   , armor : Int
@@ -377,6 +378,7 @@ goldBonusMultiplier model =
 derived : Model -> Derived
 derived model =
   { maxHealth = maxHealth model
+  , healthRegen = 0
   , attackDamage = attackDamage model
   , attackSpeed = attackSpeed model
   , armor = armor model

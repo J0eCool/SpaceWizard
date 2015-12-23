@@ -206,8 +206,8 @@ view address stats model =
   in div []
     [ h3 [] [text "Battle"]
     , viewLevel address model
-    , viewEntity "Player" (BattleStats.derived stats) model.player
-    , viewEntity "Enemy" (enemyDerived model) model.enemy
+    , viewEntity "Player" True (BattleStats.derived stats) model.player
+    , viewEntity "Enemy" False (enemyDerived model) model.enemy
     , div [] 
       [checkbox address "Attack" ToggleAttack model.isAttacking]
     , div [] 
@@ -216,8 +216,8 @@ view address stats model =
     , viewRewards stats model
     ]
 
-viewEntity : String -> BattleStats.Derived -> Entity -> Html
-viewEntity title stats entity =
+viewEntity : String -> Bool -> BattleStats.Derived -> Entity -> Html
+viewEntity title isPlayer stats entity =
     let
       healthBar =
         { width = 300
@@ -235,14 +235,26 @@ viewEntity title stats entity =
         , color = Color.rgb 255 0 255
         , background = Color.rgb 32 32 32
         }
-    in div []
+      healthStr =
+        Format.int entity.health
+        ++ " / "
+        ++ Format.int stats.maxHealth
+      enemyStats =
+        if isPlayer then
+          []
+        else
+          [ div [] [text <| "Damage: " ++ Format.int stats.attackDamage]
+          , div [] [text <| "Armor: " ++ Format.int stats.armor]
+          , div [] [text <| "Health Regen: " ++ Format.float stats.healthRegen ++ "/s"]
+          ]
+    in div [] (
       [ div [] [text title]
-      , div [] [text <| "Health: " ++ Format.int entity.health]
-      , div [] [text <| "Damage: " ++ Format.int stats.attackDamage]
-      , div [] [text <| "Amor: " ++ Format.int stats.armor]
       , ProgressBar.view healthBar
       , ProgressBar.view attackBar
+      , div [] [text <| "Health: " ++ healthStr]
       ]
+      ++ enemyStats
+      )
 
 checkbox : Signal.Address Action -> String -> Action -> Bool -> Html
 checkbox address label action value =
@@ -312,6 +324,7 @@ enemyArmor model =
 enemyDerived : Model -> BattleStats.Derived
 enemyDerived model =
   { maxHealth = maxEnemyHealth model
+  , healthRegen = 2
   , attackDamage = 5
   , attackSpeed = 1
   , armor = enemyArmor model
