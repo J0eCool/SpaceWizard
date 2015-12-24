@@ -38,22 +38,22 @@ type Action
 
 init : BattleStats.Model -> Model
 init stats =
-  let
-    enemy = 
-      { health = 0
-      , attackTimer = 0
-      }
-  in
-    { player = enemy
-    , enemy = enemy
-    , enemyLevel = 1
-    , highestLevelBeaten = 0
-    , isAttacking = True
-    , respawnTimer = 0
-    , autoProgress = False
-    }
-    |> resetEnemyHealth
-    |> resetPlayerHealth stats
+  { player = entityInit
+  , enemy = entityInit
+  , enemyLevel = 1
+  , highestLevelBeaten = 0
+  , isAttacking = True
+  , respawnTimer = 0
+  , autoProgress = False
+  }
+  |> resetEnemyHealth
+  |> resetPlayerHealth stats
+
+entityInit : Entity
+entityInit =
+  { health = 0
+  , attackTimer = 0
+  }
 
 update : Action -> BattleStats.Model -> Model -> (Model, List Currency.Bundle)
 update action stats model =
@@ -88,16 +88,81 @@ updateTick dT stats model =
   let
     isRespawning =
       model.enemy.health <= 0
+    didRespawn =
+      isRespawning && model.respawnTimer > timeToRespawn
     canAttack =
       model.isAttacking && not isRespawning
-    dIf cond =
-      if cond then dT else 0
+    no m =
+      (m, [])
+  in
+    if didRespawn then
+      let enemy = model.enemy
+      in no
+        { model
+        | respawnTimer = 0
+        , enemy = { enemy | health = maxEnemyHealth model }
+        }
+    else if isRespawning then
+      no
+        { model
+        | respawnTimer = model.respawnTimer + dT
+        }
+    else if canAttack then
+      updateAttacks dT stats model
+    else
+      no model
+
+updateAttacks : Float -> BattleStats.Model -> Model -> (Model, List Currency.Bundle)
+updateAttacks dT stats model =
+  let
+    player =
+      model.player
+    playerStats =
+      BattleStats.derived stats
+    enemy =
+      model.enemy
+    enemyStats =
+      enemyDerived model
+    (tempPlayer, tempEnemy, didEnemyDie) =
+      updateAttacker dT playerStats player enemyStats enemy
+    (updatedEnemy, updatedPlayer, didPlayerDie) =
+      updateAttacker dT enemyStats tempEnemy playerStats tempPlayer
+  in
+    if didEnemyDie then
+      ( { model
+        | enemy = tempEnemy
+        , player = tempPlayer
+        , highestLevelBeaten =
+            max model.highestLevelBeaten model.enemyLevel
+        , enemyLevel =
+            model.enemyLevel + (if model.autoProgress then 1 else 0)
+        }
+      , reward stats model)
+    else if didPlayerDie then
+      ( { model
+        | enemy = entityInit
+        , player = updatedPlayer
+        , enemyLevel = 1
+        , highestLevelBeaten = 0
+        }
+      , [])
+    else
+      ( { model
+        | enemy = updatedEnemy
+        , player = updatedPlayer
+        }
+      , [])
+
+updateAttacker : Float ->
+  BattleStats.Derived -> Entity ->
+  BattleStats.Derived -> Entity ->
+  (Entity, Entity, Bool)
+updateAttacker dT attackStats attacker targetStats target =
+  let
     attackTimer =
-      model.player.attackTimer + dIf canAttack
-    respawnTimer =
-      model.respawnTimer + dIf isRespawning
+      attacker.attackTimer + dT
     timeToAttack =
-      1 / attackSpeed stats
+      1 / attackStats.attackSpeed
     maxNumAttacks =
       3
     numAttacks =
@@ -105,66 +170,30 @@ updateTick dT stats model =
         |> floor
         |> min maxNumAttacks
     updatedAttackTimer =
-      if numAttacks >= maxNumAttacks || isRespawning then
+      if numAttacks >= maxNumAttacks then
         0
       else
         attackTimer - toFloat numAttacks * timeToAttack
-    player =
-      model.player
-    enemy =
-      model.enemy
     damage =
-      attackDamage stats - enemyArmor model
+      attackStats.attackDamage - targetStats.armor
         |> max 0
     updatedHealth =
-      enemy.health - numAttacks * damage
+      target.health - numAttacks * damage
         |> max 0
     didDie =
-      not isRespawning && updatedHealth <= 0
-    didRespawn =
-      isRespawning && respawnTimer > timeToRespawn
-    highestLevelBeaten =
-      if didDie then
-        max model.highestLevelBeaten model.enemyLevel
-      else
-        model.highestLevelBeaten
-    level =
-      if model.autoProgress && didDie then
-        highestLevelBeaten + 1
-      else
-        model.enemyLevel
-    updatedEnemy =
-      { enemy
+      updatedHealth <= 0
+    updatedTarget =
+      { target
       | health =
-        if didRespawn then
-          maxEnemyHealth model
-        else
           updatedHealth
       }
-    updatedPlayer =
-      { player
-      | attackTimer = updatedAttackTimer
+    updatedAttacker =
+      { attacker
+      | attackTimer =
+          updatedAttackTimer
       }
-  in ( { model
-      | respawnTimer =
-          if didRespawn then
-            0
-          else
-            respawnTimer
-      , enemy =
-          updatedEnemy
-      , enemyLevel =
-          level
-      , player =
-          updatedPlayer
-      , highestLevelBeaten =
-          highestLevelBeaten
-      }
-    ,   if didDie then
-        reward stats model
-      else
-        []
-    )
+  in
+    (updatedAttacker, updatedTarget, didDie)
 
 updateEnemyLevel : Int -> Model -> (Model, List Currency.Bundle)
 updateEnemyLevel diff model =
