@@ -350,7 +350,7 @@ maxEnemyHealth model =
 enemyAttackDamage : Model -> Int
 enemyAttackDamage model =
   let l = model.enemyLevel - 1
-  in 5 + 4 * l + l ^ 2
+  in 5 + 3 * l + l ^ 2
 
 enemyArmor : Model -> Int
 enemyArmor model =

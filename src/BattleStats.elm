@@ -15,6 +15,7 @@ type alias Model =
   , vitality : Stat
   , luck : Stat
   , weapon : Stat
+  , armor : Stat
   , heldAction : Maybe TimedAction
   , hoveredUpgrade : Maybe TimedAction
   , upgradeVelocity : Float
@@ -91,10 +92,19 @@ initWith str spd vit lck wep =
     { level = wep
     , cost =
       ( Currency.Gold
-      , TotalCost 2 2 1
+      , TotalCost 2 2 10
       )
     , setter = \(WrapStat stat) (WrapModel model) ->
         (WrapModel { model | weapon = stat })
+    }
+  , armor =
+    { level = wep
+    , cost =
+      ( Currency.Gold
+      , TotalCost 2 2 10
+      )
+    , setter = \(WrapStat stat) (WrapModel model) ->
+        (WrapModel { model | armor = stat })
     }
   , heldAction = Nothing
   , hoveredUpgrade = Nothing
@@ -220,6 +230,7 @@ viewBaseStats address model =
         , ("Vitality", .vitality)
         , ("Luck", .luck)
         , ("Weapon", .weapon)
+        , ("Armor", .armor)
         ]
   in ul [] items
 
@@ -261,6 +272,7 @@ viewDerivedStats model =
         , ("Max Health", i, toFloat << maxHealth)
         , ("Attack Damage", i, toFloat << attackDamage)
         , ("Attack Speed", f, attackSpeed)
+        , ("Armor", i, toFloat << armor)
         , ("DPS", f, \m -> attackSpeed m * toFloat (attackDamage m))
         , ("Weapon base damage", i, toFloat << weaponDamage)
         , ("Gold Bonus %", f, goldBonus)
@@ -347,7 +359,8 @@ maxHealth model =
 
 armor : Model -> Int
 armor model =
-  0
+  let arm = model.armor.level - 1
+  in round <| 5 + arm
 
 goldBonus : Model -> Float
 goldBonus model =
