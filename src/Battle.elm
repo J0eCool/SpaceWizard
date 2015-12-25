@@ -141,9 +141,9 @@ updateAttacks dT stats model =
     else if didPlayerDie then
       ( { model
         | enemy = entityInit
-        , player = updatedPlayer
-        , enemyLevel = 1
-        , highestLevelBeaten = 0
+        , player = { updatedPlayer | health = playerStats.maxHealth }
+        , enemyLevel = max 1 <| model.enemyLevel - 1
+        , autoProgress = False
         }
       , [])
     else
@@ -186,6 +186,8 @@ updateAttacker dT attackStats attacker targetStats target =
       { target
       | health =
           updatedHealth
+      , attackTimer =
+          if didDie then 0 else target.attackTimer
       }
     updatedAttacker =
       { attacker
@@ -345,6 +347,11 @@ maxEnemyHealth model =
   let l = model.enemyLevel - 1
   in 100 + 18 * l + 2 * l ^ 2
 
+enemyAttackDamage : Model -> Int
+enemyAttackDamage model =
+  let l = model.enemyLevel - 1
+  in 5 + 4 * l + l ^ 2
+
 enemyArmor : Model -> Int
 enemyArmor model =
   let l = toFloat <| model.enemyLevel - 1
@@ -354,7 +361,7 @@ enemyDerived : Model -> BattleStats.Derived
 enemyDerived model =
   { maxHealth = maxEnemyHealth model
   , healthRegen = 2
-  , attackDamage = 5
+  , attackDamage = enemyAttackDamage model
   , attackSpeed = 1
   , armor = enemyArmor model
   }
