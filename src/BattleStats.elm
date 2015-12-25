@@ -31,10 +31,6 @@ type alias Derived =
 type WrapModel =
   WrapModel Model
 
-type Growth
-  = LinearGrowth Float Float
-  | PowerGrowth Float Float Float
-
 type Cost
   = TotalCost Float Float Float
 
@@ -43,7 +39,6 @@ type alias CostBundle =
 
 type alias Stat =
   { level : Float
-  , growth : Growth
   , cost : CostBundle
   , setter : WrapStat -> WrapModel -> WrapModel
   }
@@ -70,35 +65,30 @@ initWith : Float -> Float -> Float -> Float -> Float -> Model
 initWith str spd vit lck wep =
   { strength =
     { level = str
-    , growth = LinearGrowth 1 0.1
     , cost = baseStatCost
     , setter = \(WrapStat stat) (WrapModel model) ->
         (WrapModel { model | strength = stat })
     }
   , speed =
     { level = spd
-    , growth = LinearGrowth 1.2 0.1
     , cost = baseStatCost
     , setter = \(WrapStat stat) (WrapModel model) ->
         (WrapModel { model | speed = stat })
     }
   , vitality =
     { level = vit
-    , growth = LinearGrowth 100 10
     , cost = baseStatCost
     , setter = \(WrapStat stat) (WrapModel model) ->
         (WrapModel { model | vitality = stat })
     }
   , luck =
     { level = lck
-    , growth = LinearGrowth 0 15
     , cost = baseStatCost
     , setter = \(WrapStat stat) (WrapModel model) ->
         (WrapModel { model | luck = stat })
     }
   , weapon =
     { level = wep
-    , growth = LinearGrowth 20 5
     , cost =
       ( Currency.Gold
       , TotalCost 2 2 1
@@ -281,10 +271,6 @@ levelUp : Float -> Stat -> Stat
 levelUp delta stat =
   { stat | level = stat.level + delta }
 
-value : Stat -> Float
-value stat =
-  growthValue stat.level stat.growth
-
 cost : Float -> Stat -> Model -> Currency.Bundle
 cost delta stat model =
   let
@@ -336,32 +322,28 @@ totalCostValue (WrapModel model) =
       totalLevel * baseCost
   in floor totalCost
 
-growthValue : Float -> Growth -> Float
-growthValue level growth =
-  case growth of
-    LinearGrowth base slope ->
-      slope * (level - 1) + base
-    PowerGrowth lin powFac pow ->
-      lin * level + powFac * (level - 1) ^ pow
-
 weaponDamage : Model -> Int
 weaponDamage model =
-  round <| value model.weapon
+  let wep = model.weapon.level - 1
+  in round <| 20 + 5 * wep
 
 attackDamage : Model -> Int
 attackDamage model =
   let
     wep = toFloat <| weaponDamage model
-    str = value model.strength
-  in round <| wep * str
+    str = model.strength.level - 1
+    strMod = 1 + 0.1 * str
+  in round <| wep * strMod
 
 attackSpeed : Model -> Float
 attackSpeed model =
-  value model.speed
+  let spd = model.speed.level - 1
+  in 1.2 + 0.1 * spd
 
 maxHealth : Model -> Int
 maxHealth model =
-  round <| value model.vitality
+  let vit = model.vitality.level - 1
+  in round <| 100 + 10 * vit
 
 armor : Model -> Int
 armor model =
@@ -369,7 +351,8 @@ armor model =
 
 goldBonus : Model -> Float
 goldBonus model =
-  value model.luck
+  let lck = model.luck.level - 1
+  in 15 * lck
 
 goldBonusMultiplier : Model -> Float
 goldBonusMultiplier model =
