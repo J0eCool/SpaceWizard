@@ -24,6 +24,7 @@ type alias Model =
 
 type alias Entity =
   { health : Int
+  , partialHealth : Float
   , attackTimer : Float
   }
 
@@ -35,6 +36,9 @@ type Action
   | DecreaseLevel
   | ToggleAttack
   | ToggleAutoProgress
+
+type alias Update =
+  BattleStats.Model -> Model -> (Model, List Currency.Bundle)
 
 init : BattleStats.Model -> Model
 init stats =
@@ -52,6 +56,7 @@ init stats =
 entityInit : Entity
 entityInit =
   { health = 0
+  , partialHealth = 0
   , attackTimer = 0
   }
 
@@ -83,8 +88,16 @@ keyboardAction key =
     KeyChar 'a' -> ToggleAutoProgress
     _ -> NoOp
 
-updateTick : Float -> BattleStats.Model -> Model -> (Model, List Currency.Bundle)
+updateTick : Float -> Update
 updateTick dT stats model =
+  let
+    (regenModel, _) =
+      updateRegen dT stats model
+  in
+    updateRespawn dT stats regenModel
+
+updateRespawn : Float -> Update
+updateRespawn dT stats model =
   let
     isRespawning =
       model.enemy.health <= 0
@@ -112,7 +125,7 @@ updateTick dT stats model =
     else
       no model
 
-updateAttacks : Float -> BattleStats.Model -> Model -> (Model, List Currency.Bundle)
+updateAttacks : Float -> Update
 updateAttacks dT stats model =
   let
     player =
@@ -196,6 +209,45 @@ updateAttacker dT attackStats attacker targetStats target =
       }
   in
     (updatedAttacker, updatedTarget, didDie)
+
+updateRegen : Float -> Update
+updateRegen dT stats model =
+  let
+    player =
+      model.player
+    playerStats =
+      BattleStats.derived stats
+    enemy =
+      model.enemy
+    enemyStats =
+      enemyDerived model
+    regen stat ent =
+      let
+        dPartial =
+          if ent.health > 0 then
+            stat.healthRegen * dT
+          else
+            0
+        tickedPartial =
+          ent.partialHealth + dPartial
+        dHealth =
+          floor tickedPartial
+        updatedHealth =
+          ent.health + dHealth
+            |> min stat.maxHealth
+        updatedPartial =
+          tickedPartial - toFloat dHealth
+      in
+        { ent
+        | health = updatedHealth
+        , partialHealth = updatedPartial
+        }
+  in
+    ( { model
+      | enemy = regen enemyStats enemy
+      , player = regen playerStats player
+      }
+    , [])
 
 updateEnemyLevel : Int -> Model -> (Model, List Currency.Bundle)
 updateEnemyLevel diff model =
@@ -350,7 +402,7 @@ maxEnemyHealth model =
 enemyAttackDamage : Model -> Int
 enemyAttackDamage model =
   let l = model.enemyLevel - 1
-  in 5 + 3 * l + l ^ 2
+  in 10 + 3 * l + l ^ 2
 
 enemyArmor : Model -> Int
 enemyArmor model =
@@ -399,10 +451,10 @@ reward stats model =
     baseGold = 5 + 2 * l + floor ((toFloat l) ^ 1.5)
     baseExp = 6 + 3 * l + l ^ 2
   in
-  [   ( Currency.Experience
+  [ ( Currency.Experience
     , baseExp
     )
-  ,   ( Currency.Gold
+  , ( Currency.Gold
     , round <| toFloat baseGold * goldBonusMultiplier stats
     )
   ]

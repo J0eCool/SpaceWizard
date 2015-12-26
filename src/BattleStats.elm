@@ -32,15 +32,8 @@ type alias Derived =
 type WrapModel =
   WrapModel Model
 
-type Cost
-  = TotalCost Float Float Float
-
-type alias CostBundle =
-  (Currency.Type, Cost)
-
 type alias Stat =
   { level : Float
-  , cost : CostBundle
   , setter : WrapStat -> WrapModel -> WrapModel
   }
 
@@ -60,49 +53,37 @@ type TimedAction
 
 init : Model
 init =
-  initWith 1 1 1 1 1
+  initWith 1 1 1 1 1 1
 
-initWith : Float -> Float -> Float -> Float -> Float -> Model
-initWith str spd vit lck wep =
+initWith : Float -> Float -> Float -> Float -> Float -> Float -> Model
+initWith str spd vit lck wep arm =
   { strength =
     { level = str
-    , cost = baseStatCost
     , setter = \(WrapStat stat) (WrapModel model) ->
         (WrapModel { model | strength = stat })
     }
   , speed =
     { level = spd
-    , cost = baseStatCost
     , setter = \(WrapStat stat) (WrapModel model) ->
         (WrapModel { model | speed = stat })
     }
   , vitality =
     { level = vit
-    , cost = baseStatCost
     , setter = \(WrapStat stat) (WrapModel model) ->
         (WrapModel { model | vitality = stat })
     }
   , luck =
     { level = lck
-    , cost = baseStatCost
     , setter = \(WrapStat stat) (WrapModel model) ->
         (WrapModel { model | luck = stat })
     }
   , weapon =
     { level = wep
-    , cost =
-      ( Currency.Gold
-      , TotalCost 2 2 10
-      )
     , setter = \(WrapStat stat) (WrapModel model) ->
         (WrapModel { model | weapon = stat })
     }
   , armor =
-    { level = wep
-    , cost =
-      ( Currency.Gold
-      , TotalCost 2 2 10
-      )
+    { level = arm
     , setter = \(WrapStat stat) (WrapModel model) ->
         (WrapModel { model | armor = stat })
     }
@@ -110,12 +91,6 @@ initWith str spd vit lck wep =
   , hoveredUpgrade = Nothing
   , upgradeVelocity = 0
   }
-
-baseStatCost : CostBundle
-baseStatCost =
-  ( Currency.Experience
-  , TotalCost 0 1 0
-  )
 
 update : Action -> Model -> (Model, List Currency.Bundle)
 update action model =
@@ -319,8 +294,8 @@ level model =
 totalCostValue : WrapModel -> Int
 totalCostValue (WrapModel model) =
   let
-    (TotalCost a b c) =
-      snd baseStatCost
+    (a, b, c) =
+      (0, 1, 0)
     cost stat =
       let l = stat.level
       in l * (c + l * (b + l * a)) -- ax^3 + bx^2 + cx
@@ -374,7 +349,7 @@ goldBonusMultiplier model =
 derived : Model -> Derived
 derived model =
   { maxHealth = maxHealth model
-  , healthRegen = 0
+  , healthRegen = 2
   , attackDamage = attackDamage model
   , attackSpeed = attackSpeed model
   , armor = armor model
