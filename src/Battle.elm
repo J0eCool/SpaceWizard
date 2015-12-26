@@ -2,7 +2,7 @@ module Battle where
 
 import Color
 import Html exposing (Html, div, h3, text, ul, li, button, input)
-import Html.Attributes exposing (type', checked)
+import Html.Attributes exposing (type', checked, disabled)
 import Html.Events exposing (onClick)
 
 import BattleStats exposing (attackDamage, attackSpeed, goldBonusMultiplier)
@@ -17,8 +17,9 @@ type alias Model =
   , enemy : Entity
   , enemyLevel : Int
   , highestLevelBeaten : Int
-  , isAttacking : Bool
+  , isPaused : Bool
   , respawnTimer : Float
+  , autoSpawn : Bool
   , autoProgress : Bool
   }
 
@@ -32,9 +33,11 @@ type Action
   = NoOp
   | Tick Float
   | KeyPress Keys.Key
+  | SpawnEnemy
   | IncreaseLevel
   | DecreaseLevel
-  | ToggleAttack
+  | TogglePause
+  | ToggleAutoSpawn
   | ToggleAutoProgress
 
 type alias Update =
@@ -46,8 +49,9 @@ init stats =
   , enemy = entityInit
   , enemyLevel = 1
   , highestLevelBeaten = 0
-  , isAttacking = True
+  , isPaused = False
   , respawnTimer = 0
+  , autoSpawn = True
   , autoProgress = False
   }
   |> resetEnemyHealth
@@ -67,13 +71,20 @@ update action stats model =
     NoOp ->
       no model
     Tick dT ->
-      updateTick dT stats model
+      if model.isPaused then
+        no model
+      else
+        updateTick dT stats model
+    SpawnEnemy ->
+      updateDoRespawn stats model
     IncreaseLevel ->
       updateEnemyLevel 1 model
     DecreaseLevel ->
       updateEnemyLevel (-1) model
-    ToggleAttack ->
-      no { model | isAttacking = not model.isAttacking }
+    TogglePause ->
+      no { model | isPaused = not model.isPaused }
+    ToggleAutoSpawn ->
+      no { model | autoSpawn = not model.autoSpawn }
     ToggleAutoProgress ->
       no { model | autoProgress = not model.autoProgress }
     KeyPress key ->
@@ -84,7 +95,7 @@ keyboardAction key =
   case key of
     KeyArrow Right -> IncreaseLevel
     KeyArrow Left -> DecreaseLevel
-    KeyChar ' ' -> ToggleAttack
+    KeyChar ' ' -> TogglePause
     KeyChar 'a' -> ToggleAutoProgress
     _ -> NoOp
 
@@ -99,34 +110,40 @@ updateTick dT stats model =
 updateRespawn : Float -> Update
 updateRespawn dT stats model =
   let
-    isRespawning =
+    isDead =
       model.enemy.health <= 0
+    isRespawning =
+      isDead && model.autoSpawn
     didRespawn =
       isRespawning && model.respawnTimer > timeToRespawn
-    canAttack =
-      model.isAttacking && not isRespawning
     no m =
       (m, [])
   in
     if didRespawn then
-      let enemy = model.enemy
-      in no
-        { model
-        | respawnTimer = 0
-        , enemy = { enemy | health = maxEnemyHealth model }
-        }
+      updateDoRespawn stats model
     else if isRespawning then
       no
         { model
         | respawnTimer = model.respawnTimer + dT
         }
-    else if canAttack then
-      updateAttacks dT stats model
-    else
+    else if isDead then
       no model
+    else
+      updateDoAttacks dT stats model
 
-updateAttacks : Float -> Update
-updateAttacks dT stats model =
+updateDoRespawn : Update
+updateDoRespawn stats model =
+  ( if model.enemy.health > 0 then
+      model
+    else
+      { model
+      | respawnTimer = 0
+      , enemy = { entityInit | health = maxEnemyHealth model }
+      }
+  , [])
+
+updateDoAttacks : Float -> Update
+updateDoAttacks dT stats model =
   let
     player =
       model.player
@@ -269,30 +286,32 @@ updateEnemyLevel diff model =
         | enemyLevel = newLevel
         , player = updatedPlayer
         }
-        |>
-          if model.enemy.health > 0 then
-            resetEnemyHealth
-          else
-            identity
+        |> resetEnemyHealth
     , [])
 
 view : Signal.Address Action -> BattleStats.Model -> Model -> Html
 view address stats model =
   let
-    attackText =
-      if model.isAttacking then
-        "Pause"
-      else
-        "Attack"
-    attackButton =
-      button [onClick address ToggleAttack] [text attackText]
+    spawnTime =
+      timeToRespawn - model.respawnTimer
+    spawnButton =
+      div []
+        [button
+          [ onClick address SpawnEnemy
+          , disabled <| model.enemy.health > 0
+          ]
+          [text <| "Spawn (" ++ Format.floatWithDigits 1 spawnTime ++ "s)"]
+        ]
   in div []
     [ h3 [] [text "Battle"]
     , viewLevel address model
     , viewEntity "Player" True (BattleStats.derived stats) model.player
     , viewEntity "Enemy" False (enemyDerived model) model.enemy
+    , spawnButton
     , div [] 
-      [checkbox address "Attack" ToggleAttack model.isAttacking]
+      [checkbox address "Pause" TogglePause model.isPaused]
+    , div [] 
+      [checkbox address "Auto-spawn" ToggleAutoSpawn model.autoSpawn]
     , div [] 
       [checkbox address "Auto-progress" ToggleAutoProgress model.autoProgress]
     , div [] [text "Reward: "]
@@ -442,7 +461,7 @@ resetPlayerHealth stats model =
 
 timeToRespawn : Float
 timeToRespawn =
-  1
+  4
 
 reward : BattleStats.Model -> Model -> List Currency.Bundle
 reward stats model =
