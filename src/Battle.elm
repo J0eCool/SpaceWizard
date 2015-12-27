@@ -21,11 +21,13 @@ type alias Model =
   , respawnTimer : Float
   , autoSpawn : Bool
   , autoProgress : Bool
+  , playerHadDied : Bool
   }
 
 type alias Entity =
   { health : Int
   , partialHealth : Float
+  , isDead : Bool
   , attackTimer : Float
   }
 
@@ -53,6 +55,7 @@ init stats =
   , respawnTimer = 0
   , autoSpawn = True
   , autoProgress = False
+  , playerHadDied = False
   }
   |> resetEnemyHealth
   |> resetPlayerHealth stats
@@ -61,6 +64,7 @@ entityInit : Entity
 entityInit =
   { health = 0
   , partialHealth = 0
+  , isDead = False
   , attackTimer = 0
   }
 
@@ -76,7 +80,7 @@ update action stats model =
       else
         updateTick dT stats model
     SpawnEnemy ->
-      updateDoRespawn stats model
+      updateDoRespawn model
     IncreaseLevel ->
       updateEnemyLevel 1 model
     DecreaseLevel ->
@@ -97,6 +101,7 @@ keyboardAction key =
     KeyArrow Left -> DecreaseLevel
     KeyChar ' ' -> TogglePause
     KeyChar 'a' -> ToggleAutoProgress
+    KeyChar 's' -> SpawnEnemy
     _ -> NoOp
 
 updateTick : Float -> Update
@@ -113,14 +118,14 @@ updateRespawn dT stats model =
     isDead =
       model.enemy.health <= 0
     isRespawning =
-      isDead && model.autoSpawn
+      isDead && model.autoSpawn && not model.playerHadDied
     didRespawn =
       isRespawning && model.respawnTimer > timeToRespawn
     no m =
       (m, [])
   in
     if didRespawn then
-      updateDoRespawn stats model
+      updateDoRespawn model
     else if isRespawning then
       no
         { model
@@ -131,16 +136,16 @@ updateRespawn dT stats model =
     else
       updateDoAttacks dT stats model
 
-updateDoRespawn : Update
-updateDoRespawn stats model =
-  ( if model.enemy.health > 0 then
-      model
-    else
-      { model
+updateDoRespawn : Model -> (Model, List Currency.Bundle)
+updateDoRespawn model =
+  if not model.enemy.isDead then
+    (model, [])
+  else
+    ( { model
       | respawnTimer = 0
       , enemy = { entityInit | health = maxEnemyHealth model }
       }
-  , [])
+    , [])
 
 updateDoAttacks : Float -> Update
 updateDoAttacks dT stats model =
@@ -170,10 +175,11 @@ updateDoAttacks dT stats model =
       , reward stats model)
     else if didPlayerDie then
       ( { model
-        | enemy = entityInit
-        , player = { updatedPlayer | health = playerStats.maxHealth }
+        | enemy = { entityInit | isDead = True }
+        , player = { updatedPlayer | isDead = False }
         , enemyLevel = max 1 <| model.enemyLevel - 1
         , autoProgress = False
+        , playerHadDied = True
         }
       , [])
     else
@@ -218,6 +224,8 @@ updateAttacker dT attackStats attacker targetStats target =
           updatedHealth
       , attackTimer =
           if didDie then 0 else target.attackTimer
+      , isDead =
+          didDie
       }
     updatedAttacker =
       { attacker
@@ -241,7 +249,7 @@ updateRegen dT stats model =
     regen stat ent =
       let
         dPartial =
-          if ent.health > 0 then
+          if not ent.isDead then
             stat.healthRegen * dT
           else
             0
@@ -259,10 +267,13 @@ updateRegen dT stats model =
         | health = updatedHealth
         , partialHealth = updatedPartial
         }
+    updatedHadDied =
+      model.playerHadDied && player.health < playerStats.maxHealth
   in
     ( { model
       | enemy = regen enemyStats enemy
       , player = regen playerStats player
+      , playerHadDied = updatedHadDied
       }
     , [])
 
@@ -279,15 +290,14 @@ updateEnemyLevel diff model =
       | attackTimer = 0
       }
   in
-    ( if model.enemyLevel == newLevel then
-        model
-      else
-        { model
-        | enemyLevel = newLevel
-        , player = updatedPlayer
-        }
-        |> resetEnemyHealth
-    , [])
+    if model.enemyLevel == newLevel then
+      (model, [])
+    else
+      { model
+      | enemyLevel = newLevel
+      , player = updatedPlayer
+      }
+      |> updateDoRespawn
 
 view : Signal.Address Action -> BattleStats.Model -> Model -> Html
 view address stats model =
