@@ -13,6 +13,7 @@ type alias Model =
   { strength : Stat
   , speed : Stat
   , vitality : Stat
+  , endurance : Stat
   , luck : Stat
   , weapon : Stat
   , armor : Stat
@@ -53,10 +54,11 @@ type TimedAction
 
 init : Model
 init =
-  initWith 1 1 1 1 1 1
+  initWith 1 1 1 1 1 1 1
 
-initWith : Float -> Float -> Float -> Float -> Float -> Float -> Model
-initWith str spd vit lck wep arm =
+initWith : Float -> Float -> Float -> Float -> Float ->
+  Float -> Float -> Model
+initWith str spd vit end lck wep arm =
   { strength =
     { level = str
     , setter = \(WrapStat stat) (WrapModel model) ->
@@ -71,6 +73,11 @@ initWith str spd vit lck wep arm =
     { level = vit
     , setter = \(WrapStat stat) (WrapModel model) ->
         (WrapModel { model | vitality = stat })
+    }
+  , endurance =
+    { level = end
+    , setter = \(WrapStat stat) (WrapModel model) ->
+        (WrapModel { model | endurance = stat })
     }
   , luck =
     { level = lck
@@ -203,6 +210,7 @@ viewBaseStats address model =
         [ ("Strength", .strength)
         , ("Speed", .speed)
         , ("Vitality", .vitality)
+        , ("Endurance", .endurance)
         , ("Luck", .luck)
         , ("Weapon", .weapon)
         , ("Armor", .armor)
@@ -248,8 +256,10 @@ viewDerivedStats model =
         , ("Attack Damage", i, toFloat << attackDamage)
         , ("Attack Speed", f, attackSpeed)
         , ("Armor", i, toFloat << armor)
+        , ("Health Regen", f, healthRegen)
         , ("DPS", f, \m -> attackSpeed m * toFloat (attackDamage m))
         , ("Weapon base damage", i, toFloat << weaponDamage)
+        , ("Base armor", i, toFloat << baseArmor)
         , ("Gold Bonus %", f, goldBonus)
         ]
   in ul [] items
@@ -275,6 +285,7 @@ allStatFields =
   [ .strength
   , .speed
   , .vitality
+  , .endurance
   , .luck
   ]
 
@@ -283,13 +294,16 @@ allStats model =
   allStatFields
     |> List.map (\f -> f model)
 
+allStatsCount : Int
+allStatsCount =
+  List.length allStatFields
 
 level : Model -> Float
 level model =
   allStats model
     |> List.map .level
     |> List.sum
-    |> flip (/) 4
+    |> \n -> n / (toFloat allStatsCount)
 
 totalCostValue : WrapModel -> Int
 totalCostValue (WrapModel model) =
@@ -329,13 +343,32 @@ attackSpeed model =
 
 maxHealth : Model -> Int
 maxHealth model =
-  let vit = model.vitality.level - 1
-  in round <| 100 + 10 * vit
+  let
+    vit = model.vitality.level - 1
+    base = 100 + 10 * vit
+    lv = level model - 1
+    lvMod = 1 + 0.05 * lv
+  in round <| base * lvMod
+
+healthRegen : Model -> Float
+healthRegen model =
+  let
+    end = model.endurance.level - 1
+    hp = toFloat <| maxHealth model
+  in 2 + 0.005 * hp + 0.5 * end
+
+baseArmor : Model -> Int
+baseArmor model =
+  let arm = model.armor.level - 1
+  in round <| 5 + arm
 
 armor : Model -> Int
 armor model =
-  let arm = model.armor.level - 1
-  in round <| 5 + arm
+  let
+    arm = toFloat <| baseArmor model
+    end = model.endurance.level - 1
+    endMod = 1 + 0.1 * end
+  in round <| arm * endMod
 
 goldBonus : Model -> Float
 goldBonus model =
@@ -349,7 +382,7 @@ goldBonusMultiplier model =
 derived : Model -> Derived
 derived model =
   { maxHealth = maxHealth model
-  , healthRegen = 2
+  , healthRegen = healthRegen model
   , attackDamage = attackDamage model
   , attackSpeed = attackSpeed model
   , armor = armor model

@@ -144,6 +144,7 @@ updateDoRespawn model =
     ( { model
       | respawnTimer = 0
       , enemy = { entityInit | health = maxEnemyHealth model }
+      , playerHadDied = False
       }
     , [])
 
