@@ -334,7 +334,9 @@ attackDamage model =
     wep = toFloat <| weaponDamage model
     str = model.strength.level - 1
     strMod = 1 + 0.1 * str
-  in round <| wep * strMod
+    lv = level model - 1
+    lvMod = 1 + 0.025 * lv
+  in round <| wep * strMod * lvMod
 
 attackSpeed : Model -> Float
 attackSpeed model =
