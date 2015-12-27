@@ -80,7 +80,10 @@ update action stats model =
       else
         updateTick dT stats model
     SpawnEnemy ->
-      updateDoRespawn model
+      if not model.enemy.isDead then
+        no model
+      else
+        updateDoRespawn model
     IncreaseLevel ->
       updateEnemyLevel 1 model
     DecreaseLevel ->
@@ -116,7 +119,7 @@ updateRespawn : Float -> Update
 updateRespawn dT stats model =
   let
     isDead =
-      model.enemy.health <= 0
+      model.enemy.isDead
     isRespawning =
       isDead && model.autoSpawn && not model.playerHadDied
     didRespawn =
@@ -138,15 +141,12 @@ updateRespawn dT stats model =
 
 updateDoRespawn : Model -> (Model, List Currency.Bundle)
 updateDoRespawn model =
-  if not model.enemy.isDead then
-    (model, [])
-  else
-    ( { model
-      | respawnTimer = 0
-      , enemy = { entityInit | health = maxEnemyHealth model }
-      , playerHadDied = False
-      }
-    , [])
+  ( { model
+    | respawnTimer = 0
+    , enemy = { entityInit | health = maxEnemyHealth model }
+    , playerHadDied = False
+    }
+  , [])
 
 updateDoAttacks : Float -> Update
 updateDoAttacks dT stats model =
