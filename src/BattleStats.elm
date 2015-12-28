@@ -5,6 +5,7 @@ import Html exposing (Html, div, h3, text, span, button, ul, li)
 import Html.Events exposing (onMouseDown, onMouseUp, onMouseEnter, onMouseLeave)
 
 import Currency
+import Equipment
 import Format
 import Style exposing (..)
 import Widgets.ProgressBar as ProgressBar
@@ -15,8 +16,6 @@ type alias Model =
   , vitality : Stat
   , endurance : Stat
   , luck : Stat
-  , weapon : Stat
-  , armor : Stat
   , heldAction : Maybe TimedAction
   , hoveredUpgrade : Maybe TimedAction
   , upgradeVelocity : Float
@@ -54,11 +53,10 @@ type TimedAction
 
 init : Model
 init =
-  initWith 1 1 1 1 1 1 1
+  initWith 1 1 1 1 1
 
-initWith : Float -> Float -> Float -> Float -> Float ->
-  Float -> Float -> Model
-initWith str spd vit end lck wep arm =
+initWith : Float -> Float -> Float -> Float -> Float -> Model
+initWith str spd vit end lck =
   { strength =
     { level = str
     , setter = \(WrapStat stat) (WrapModel model) ->
@@ -83,16 +81,6 @@ initWith str spd vit end lck wep arm =
     { level = lck
     , setter = \(WrapStat stat) (WrapModel model) ->
         (WrapModel { model | luck = stat })
-    }
-  , weapon =
-    { level = wep
-    , setter = \(WrapStat stat) (WrapModel model) ->
-        (WrapModel { model | weapon = stat })
-    }
-  , armor =
-    { level = arm
-    , setter = \(WrapStat stat) (WrapModel model) ->
-        (WrapModel { model | armor = stat })
     }
   , heldAction = Nothing
   , hoveredUpgrade = Nothing
@@ -145,12 +133,12 @@ upgradeBy amount action model =
       stat.setter (WrapStat updatedStat) (WrapModel model)
   in (updatedModel, [spent])
 
-view : Signal.Address Action -> Model -> Html
-view address model =
+view : Signal.Address Action -> Equipment.Model -> Model -> Html
+view address equip model =
   div []
     [ h3 [] [text "Stats"]
     , viewBaseStats address model
-    , viewDerivedStats model
+    , viewDerivedStats equip model
     ]
 
 viewBaseStats : Signal.Address Action -> Model -> Html
@@ -212,13 +200,11 @@ viewBaseStats address model =
         , ("Vitality", .vitality)
         , ("Endurance", .endurance)
         , ("Luck", .luck)
-        , ("Weapon", .weapon)
-        , ("Armor", .armor)
         ]
   in ul [] items
 
-viewDerivedStats : Model -> Html
-viewDerivedStats model =
+viewDerivedStats : Equipment.Model -> Model -> Html
+viewDerivedStats equip model =
   let
     upgradedModel =
       case model.hoveredUpgrade of
@@ -253,13 +239,11 @@ viewDerivedStats model =
       List.map viewStat
         [ ("Level", f, level)
         , ("Max Health", i, toFloat << maxHealth)
-        , ("Attack Damage", i, toFloat << attackDamage)
+        , ("Attack Damage", i, toFloat << attackDamage equip)
         , ("Attack Speed", f, attackSpeed)
-        , ("Armor", i, toFloat << armor)
+        , ("Armor", i, toFloat << armor equip)
         , ("Health Regen", f, healthRegen)
-        , ("DPS", f, \m -> attackSpeed m * toFloat (attackDamage m))
-        , ("Weapon base damage", i, toFloat << weaponDamage)
-        , ("Base armor", i, toFloat << baseArmor)
+        , ("DPS", f, \m -> attackSpeed m * toFloat (attackDamage equip m))
         , ("Gold Bonus %", f, goldBonus)
         ]
   in ul [] items
@@ -323,15 +307,10 @@ totalCostValue (WrapModel model) =
       totalLevel * baseCost
   in floor totalCost
 
-weaponDamage : Model -> Int
-weaponDamage model =
-  let wep = model.weapon.level - 1
-  in round <| 20 + 5 * wep
-
-attackDamage : Model -> Int
-attackDamage model =
+attackDamage : Equipment.Model -> Model -> Int
+attackDamage equip model =
   let
-    wep = toFloat <| weaponDamage model
+    wep = toFloat <| Equipment.attackDamage equip
     str = model.strength.level - 1
     strMod = 1 + 0.1 * str
     lv = level model - 1
@@ -359,15 +338,10 @@ healthRegen model =
     hp = toFloat <| maxHealth model
   in 2 + 0.005 * hp + 0.5 * end
 
-baseArmor : Model -> Int
-baseArmor model =
-  let arm = model.armor.level - 1
-  in round <| 5 + arm
-
-armor : Model -> Int
-armor model =
+armor : Equipment.Model -> Model -> Int
+armor equip model =
   let
-    arm = toFloat <| baseArmor model
+    arm = toFloat <| Equipment.armor equip
     end = model.endurance.level - 1
     endMod = 1 + 0.1 * end
   in round <| arm * endMod
@@ -381,11 +355,11 @@ goldBonusMultiplier : Model -> Float
 goldBonusMultiplier model =
   1 + goldBonus model / 100
 
-derived : Model -> Derived
-derived model =
+derived : Equipment.Model -> Model -> Derived
+derived equip model =
   { maxHealth = maxHealth model
   , healthRegen = healthRegen model
-  , attackDamage = attackDamage model
+  , attackDamage = attackDamage equip model
   , attackSpeed = attackSpeed model
-  , armor = armor model
+  , armor = armor equip model
   }
