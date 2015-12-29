@@ -104,9 +104,12 @@ update action model =
         , inventory = Inventory.update battleRewards model.inventory
         }
     StatsAction sAction ->
-      let (stats', statCost) =
-        BattleStats.update sAction model.stats
-      in tryPurchase statCost model { model | stats = stats' }
+      let
+        statUpdate =
+          BattleStats.update sAction model.stats
+        statSetter s m =
+          { m | stats = s }
+      in tryPurchase statSetter statUpdate model
     EquipAction eAction ->
       let
         updatedEquipment =
@@ -128,13 +131,12 @@ battleContext model =
   , equip = model.equipment
   }
 
-tryPurchase cost model successfulModel =
+tryPurchase : (a -> Model -> Model) -> (a, List Currency.Bundle) -> Model -> Model
+tryPurchase setter (updated, cost) model =
   let result =
-    Inventory.spendAll cost successfulModel.inventory
+    Inventory.spendAll cost model.inventory
   in case result of
-    Ok inventory' ->
-      { successfulModel
-      | inventory = inventory'
-      }
+    Ok updatedInventory ->
+      setter updated { model | inventory = updatedInventory }
     Err _ ->
       model
