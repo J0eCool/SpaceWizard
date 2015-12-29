@@ -6,8 +6,14 @@ import Html.Events exposing (onClick)
 import Format
 
 type alias Model =
-  { weapon : Float
+  { weapon : Weapon
   , armor : Float
+  }
+
+type alias Weapon =
+  { name : String
+  , damage : Int
+  , level : Float
   }
 
 type Action
@@ -16,14 +22,21 @@ type Action
 
 init : Model
 init =
-  { weapon = 1
+  { weapon =
+    { name = "Sword"
+    , damage = 20
+    , level = 1
+    }
   , armor = 1
   }
 
 attackDamage : Model -> Int
 attackDamage model =
-  let wep = model.weapon - 1
-  in round <| 20 + 5 * wep
+  let
+    dmg = toFloat model.weapon.damage
+    lv = model.weapon.level - 1
+    lvMod = 1 + 0.25 * lv
+  in round <| dmg * lvMod
 
 armor : Model -> Int
 armor model =
@@ -36,14 +49,15 @@ update action model =
     NoOp ->
       model
     UpgradeWeapon ->
-      { model | weapon = model.weapon + 1 }
+      let wep = model.weapon
+      in { model | weapon = { wep | level = wep.level + 1 } }
 
 view : Signal.Address Action -> Model -> Html
 view address model =
   div []
     [ h3 [] [text "Equipment"]
     , div []
-      [ text <| "Weapon: " ++ Format.float model.weapon
+      [ text <| "Weapon: " ++ Format.float model.weapon.level
       , button [onClick address UpgradeWeapon] [text "+"]
       ]
     , div [] [text <| "Armor: " ++ Format.float model.armor]
