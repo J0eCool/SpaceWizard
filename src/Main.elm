@@ -29,6 +29,7 @@ type Action
   = Tick Float
   | BattleAction Battle.Action
   | StatsAction BattleStats.Action
+  | EquipAction Equipment.Action
   | KeyPress Keys.Key
 
 main : Signal Html
@@ -71,14 +72,13 @@ inputs =
 view : Signal.Address Action -> Model -> Html
 view address model =
   let
-    battleAddress =
-      Signal.forwardTo address BattleAction
-    shopAddress =
-      Signal.forwardTo address StatsAction
+    fwd =
+      Signal.forwardTo address
   in div []
-    [ Battle.view battleAddress (battleContext model) model.battle
+    [ Battle.view (fwd BattleAction) (battleContext model) model.battle
     , lazy Inventory.view model.inventory
-    , lazy2 (BattleStats.view shopAddress) model.equipment model.stats
+    , lazy2 (BattleStats.view <| fwd StatsAction) model.equipment model.stats
+    , lazy (Equipment.view <| fwd EquipAction) model.equipment
     ]
 
 update : Action -> Model -> Model
@@ -107,6 +107,11 @@ update action model =
       let (stats', statCost) =
         BattleStats.update sAction model.stats
       in tryPurchase statCost model { model | stats = stats' }
+    EquipAction eAction ->
+      let
+        updatedEquipment =
+          Equipment.update eAction model.equipment
+      in { model | equipment = updatedEquipment }
     KeyPress key ->
       let
         battle' =
