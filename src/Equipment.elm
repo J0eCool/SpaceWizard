@@ -1,13 +1,15 @@
 module Equipment where
 
-import Html exposing (Html, div, h3, text, button)
+import Html exposing (Html, div, span, h3, h4, text, button, ul, li)
 import Html.Events exposing (onClick)
 
 import Format
+import ListUtil exposing (remove)
 
 type alias Model =
   { weapon : Weapon
   , armor : Float
+  , inventory : List Weapon
   }
 
 type alias Weapon =
@@ -18,7 +20,8 @@ type alias Weapon =
 
 type Action
   = NoOp
-  | UpgradeWeapon
+  | Upgrade Weapon
+  | Equip Weapon
 
 init : Model
 init =
@@ -28,13 +31,27 @@ init =
     , level = 1
     }
   , armor = 1
+  , inventory =
+      [ { name = "Dagger"
+        , damage = 15
+        , level = 1
+        }
+      , { name = "Axe"
+        , damage = 26
+        , level = 1
+        }
+      ]
   }
 
 attackDamage : Model -> Int
 attackDamage model =
+  weaponDamage model.weapon
+
+weaponDamage : Weapon -> Int
+weaponDamage weapon =
   let
-    dmg = toFloat model.weapon.damage
-    lv = model.weapon.level - 1
+    dmg = toFloat weapon.damage
+    lv = weapon.level - 1
     lvMod = 1 + 0.25 * lv
   in round <| dmg * lvMod
 
@@ -48,17 +65,41 @@ update action model =
   case action of
     NoOp ->
       model
-    UpgradeWeapon ->
-      let wep = model.weapon
-      in { model | weapon = { wep | level = wep.level + 1 } }
+    Upgrade weapon ->
+      model
+      --let wep = model.weapon
+      --in { model | weapon = { wep | level = wep.level + 1 } }
+    Equip weapon ->
+      model
 
 view : Signal.Address Action -> Model -> Html
 view address model =
   div []
     [ h3 [] [text "Equipment"]
     , div []
-      [ text <| "Weapon: " ++ Format.float model.weapon.level
-      , button [onClick address UpgradeWeapon] [text "+"]
+      [ text "Equipped weapon"
+      , viewWeapon address div model.weapon
       ]
     , div [] [text <| "Armor: " ++ Format.float model.armor]
+    , h3 [] [text "Inventory"]
+    , ul [] <| List.map (viewWeapon address li) model.inventory
+    ]
+
+viewWeapon : Signal.Address Action -> (List Html.Attribute -> List Html -> Html) -> Weapon -> Html
+viewWeapon address elem weapon =
+  elem []
+    [ div []
+        [ text
+            <| weapon.name
+            ++ " (lv "
+            ++ Format.float weapon.level
+            ++ ")"
+        ]
+    , ul []
+        [ li [] [text <| "Damage " ++ Format.int (weaponDamage weapon)]
+        , li []
+            [ button [onClick address <| Equip weapon] [text "Equip"] ]
+        , li []
+            [ button [onClick address <| Upgrade weapon] [text "Upgrade"]]
+        ]
     ]

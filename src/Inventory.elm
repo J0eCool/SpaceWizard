@@ -24,7 +24,7 @@ update rewards model =
 view : Model -> Html
 view model =
   div []
-    [ h3 [] [text "Inventory"]
+    [ h3 [] [text "Currency"]
     ,   let lines = map viewCurrency model
       in ul [] lines
     ]

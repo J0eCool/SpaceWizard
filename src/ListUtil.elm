@@ -46,3 +46,13 @@ findWith f list =
         Just x
       else
         findWith f xs
+
+remove : a -> List a -> List a
+remove x list =
+  case list of
+    [] -> []
+    (y :: ys) ->
+      if x == y then
+        ys
+      else
+        y :: remove x ys
