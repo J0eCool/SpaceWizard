@@ -4,7 +4,7 @@ import Html exposing (Html, div, span, h3, h4, text, button, ul, li)
 import Html.Events exposing (onClick)
 
 import Format
-import ListUtil exposing (remove)
+import ListUtil exposing (contains, remove, replaceFirst)
 
 type alias Model =
   { weapon : Weapon
@@ -66,11 +66,26 @@ update action model =
     NoOp ->
       model
     Upgrade weapon ->
-      model
-      --let wep = model.weapon
-      --in { model | weapon = { wep | level = wep.level + 1 } }
+      let upgraded = { weapon | level = weapon.level + 1 }
+      in if model.weapon == weapon then
+        { model | weapon = upgraded }
+      else
+        let updatedInv = replaceFirst weapon upgraded model.inventory
+        in { model | inventory = updatedInv }
     Equip weapon ->
-      model
+      if model.weapon == weapon then
+        model
+      else
+        let
+          removedInv =
+            remove weapon model.inventory
+          addedInv =
+            removedInv ++ [model.weapon]
+        in
+          { model
+          | weapon = weapon
+          , inventory = addedInv
+          }
 
 view : Signal.Address Action -> Model -> Html
 view address model =

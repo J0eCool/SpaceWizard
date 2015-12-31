@@ -47,6 +47,14 @@ findWith f list =
       else
         findWith f xs
 
+contains : a -> List a -> Bool
+contains x list =
+  case findWith ((==) x) list of
+    Just y ->
+      True
+    Nothing ->
+      False
+
 remove : a -> List a -> List a
 remove x list =
   case list of
@@ -56,3 +64,13 @@ remove x list =
         ys
       else
         y :: remove x ys
+
+replaceFirst : a -> a -> List a -> List a
+replaceFirst x with list =
+  case list of
+    [] -> []
+    (y :: ys) ->
+      if x == y then
+        with :: ys
+      else
+        y :: replaceFirst x with ys
