@@ -416,7 +416,7 @@ viewRewards ctx model =
     attacksToKill =
       ceiling <| maxEnemyHealth model ./ damage
     timePerKill =
-      timeToRespawn + toFloat attacksToKill / attackSpeed ctx.stats
+      timeToRespawn + toFloat attacksToKill / attackSpeed ctx.equip ctx.stats
     perSecond =
       Currency.bundleMap (\cur -> toFloat cur / timePerKill)
     item c =

@@ -240,10 +240,10 @@ viewDerivedStats equip model =
         [ ("Level", f, level)
         , ("Max Health", i, toFloat << maxHealth)
         , ("Attack Damage", i, toFloat << attackDamage equip)
-        , ("Attack Speed", f, attackSpeed)
+        , ("Attack Speed", f, attackSpeed equip)
         , ("Armor", i, toFloat << armor equip)
         , ("Health Regen", f, healthRegen)
-        , ("DPS", f, \m -> attackSpeed m * toFloat (attackDamage equip m))
+        , ("DPS", f, \m -> attackSpeed equip m * toFloat (attackDamage equip m))
         , ("Gold Bonus %", f, goldBonus)
         ]
   in ul [] items
@@ -317,10 +317,13 @@ attackDamage equip model =
     lvMod = 1 + 0.025 * lv
   in round <| wep * strMod * lvMod
 
-attackSpeed : Model -> Float
-attackSpeed model =
-  let spd = model.speed.level - 1
-  in 1.2 + 0.1 * spd
+attackSpeed : Equipment.Model -> Model -> Float
+attackSpeed equip model =
+  let
+    baseSpeed = Equipment.attackSpeed equip
+    spd = model.speed.level - 1
+    spdMod = 1 + 0.08 * spd
+  in baseSpeed * spdMod
 
 maxHealth : Model -> Int
 maxHealth model =
@@ -360,6 +363,6 @@ derived equip model =
   { maxHealth = maxHealth model
   , healthRegen = healthRegen model
   , attackDamage = attackDamage equip model
-  , attackSpeed = attackSpeed model
+  , attackSpeed = attackSpeed equip model
   , armor = armor equip model
   }

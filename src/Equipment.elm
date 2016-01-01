@@ -15,6 +15,7 @@ type alias Model =
 type alias Weapon =
   { name : String
   , damage : Int
+  , attackSpeed : Float
   , level : Float
   }
 
@@ -28,16 +29,19 @@ init =
   { weapon =
     { name = "Sword"
     , damage = 20
+    , attackSpeed = 1.2
     , level = 1
     }
   , armor = 1
   , inventory =
       [ { name = "Dagger"
         , damage = 15
+        , attackSpeed = 1.5
         , level = 1
         }
       , { name = "Axe"
         , damage = 26
+        , attackSpeed = 1.0
         , level = 1
         }
       ]
@@ -54,6 +58,10 @@ weaponDamage weapon =
     lv = weapon.level - 1
     lvMod = 1 + 0.25 * lv
   in round <| dmg * lvMod
+
+attackSpeed : Model -> Float
+attackSpeed model =
+  model.weapon.attackSpeed
 
 armor : Model -> Int
 armor model =
@@ -112,6 +120,7 @@ viewWeapon address elem weapon =
         ]
     , ul []
         [ li [] [text <| "Damage " ++ Format.int (weaponDamage weapon)]
+        , li [] [text <| "Attack Speed " ++ Format.float weapon.attackSpeed ++ "/s"]
         , li []
             [ button [onClick address <| Equip weapon] [text "Equip"] ]
         , li []
