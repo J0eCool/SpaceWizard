@@ -1,6 +1,7 @@
 module BattleStats where
 
 import Color
+import Focus exposing (..)
 import Html exposing (Html, div, h3, text, span, button, ul, li)
 import Html.Events exposing (onMouseDown, onMouseUp, onMouseEnter, onMouseLeave)
 
@@ -29,16 +30,10 @@ type alias Derived =
   , armor : Int
   }
 
-type WrapModel =
-  WrapModel Model
-
 type alias Stat =
   { level : Float
-  , setter : WrapStat -> WrapModel -> WrapModel
+  , name : String
   }
-
-type WrapStat =
-  WrapStat Stat
 
 type Action
   = SetHeld TimedAction
@@ -48,44 +43,41 @@ type Action
   | Tick Float
 
 type TimedAction
-  = Upgrade (Model -> Stat)
-  | LimitedUpgrade Int (Model -> Stat)
+  = Upgrade (Focus Model Stat)
+  | LimitedUpgrade Int (Focus Model Stat)
 
 init : Model
 init =
-  initWith 1 1 1 1 1
-
-initWith : Float -> Float -> Float -> Float -> Float -> Model
-initWith str spd vit end lck =
   { strength =
-    { level = str
-    , setter = \(WrapStat stat) (WrapModel model) ->
-        (WrapModel { model | strength = stat })
+    { name = "Strength"
+    , level = 1
     }
   , speed =
-    { level = spd
-    , setter = \(WrapStat stat) (WrapModel model) ->
-        (WrapModel { model | speed = stat })
+    { name = "Speed"
+    , level = 1
     }
   , vitality =
-    { level = vit
-    , setter = \(WrapStat stat) (WrapModel model) ->
-        (WrapModel { model | vitality = stat })
+    { name = "Vitality"
+    , level = 1
     }
   , endurance =
-    { level = end
-    , setter = \(WrapStat stat) (WrapModel model) ->
-        (WrapModel { model | endurance = stat })
+    { name = "Endurance"
+    , level = 1
     }
   , luck =
-    { level = lck
-    , setter = \(WrapStat stat) (WrapModel model) ->
-        (WrapModel { model | luck = stat })
+    { name = "Luck"
+    , level = 1
     }
   , heldAction = Nothing
   , hoveredUpgrade = Nothing
   , upgradeVelocity = 0
   }
+
+strength = create .strength <| \f m -> { m | strength = f m.strength }
+speed = create .speed <| \f m -> { m | speed = f m.speed }
+vitality = create .vitality <| \f m -> { m | vitality = f m.vitality }
+endurance = create .endurance <| \f m -> { m | endurance = f m.endurance }
+luck = create .luck <| \f m -> { m | luck = f m.luck }
 
 update : Action -> Model -> (Model, List Currency.Bundle)
 update action model =
@@ -115,22 +107,24 @@ update action model =
 upgradeBy : Float -> TimedAction -> Model -> (Model, List Currency.Bundle)
 upgradeBy amount action model =
   let
-    (limitedAmount, stat) =
+    (limitedAmount, focus) =
       case action of
-        Upgrade field ->
-          (amount, field model)
-        LimitedUpgrade nextLevel field ->
-          let stat = field model
+        Upgrade focus ->
+          (amount, focus)
+        LimitedUpgrade nextLevel focus ->
+          let stat = get focus model
           in
             ( min amount <| toFloat nextLevel - stat.level
-            , stat
+            , focus
             )
+    stat =
+      get focus model
     spent =
-      cost limitedAmount stat model
+      cost limitedAmount focus model
     updatedStat =
       levelUp limitedAmount stat
-    (WrapModel updatedModel) =
-      stat.setter (WrapStat updatedStat) (WrapModel model)
+    updatedModel =
+      set focus updatedStat model
   in (updatedModel, [spent])
 
 view : Signal.Address Action -> Equipment.Model -> Model -> Html
@@ -144,15 +138,17 @@ view address equip model =
 viewBaseStats : Signal.Address Action -> Model -> Html
 viewBaseStats address model =
   let
-    viewStat (title, field) =
+    viewStat focus =
       let
         stat =
-          field model
+          get focus model
+        title =
+          stat.name
         curCost =
-          cost 1 stat model
+          cost 1 focus model
         upgradeButton delta label action =
           let curCost =
-            cost delta stat model
+            cost delta focus model
           in
             button
             [ onMouseDown address <| SetHeld action
@@ -190,17 +186,11 @@ viewBaseStats address model =
           , curAmount = stat.level - toFloat (floor stat.level)
           , maxAmount = 1
           }
-        , upgradeButton 1 "Upgrade" (Upgrade field)
-        , upgradeButton toNext ("To " ++ Format.int next) (LimitedUpgrade next field)
+        , upgradeButton 1 "Upgrade" (Upgrade focus)
+        , upgradeButton toNext ("To " ++ Format.int next) (LimitedUpgrade next focus)
         ]
     items =
-      List.map viewStat
-        [ ("Strength", .strength)
-        , ("Speed", .speed)
-        , ("Vitality", .vitality)
-        , ("Endurance", .endurance)
-        , ("Luck", .luck)
-        ]
+      List.map viewStat allStatFocuses
   in ul [] items
 
 viewDerivedStats : Equipment.Model -> Model -> Html
@@ -252,35 +242,35 @@ levelUp : Float -> Stat -> Stat
 levelUp delta stat =
   { stat | level = stat.level + delta }
 
-cost : Float -> Stat -> Model -> Currency.Bundle
-cost delta stat model =
+cost : Float -> Focus Model Stat -> Model -> Currency.Bundle
+cost delta focus model =
   let
-    wrapModel = WrapModel model
-    cur = totalCostValue wrapModel
-    nextStat = WrapStat { stat | level = stat.level + delta }
-    next = totalCostValue (stat.setter nextStat wrapModel)
+    stat = get focus model
+    cur = totalCostValue model
+    nextStat = { stat | level = stat.level + delta }
+    next = totalCostValue (set focus nextStat model)
   in
     ( Currency.Experience
     , next - cur
     )
 
-allStatFields : List (Model -> Stat)
-allStatFields =
-  [ .strength
-  , .speed
-  , .vitality
-  , .endurance
-  , .luck
+allStatFocuses : List (Focus Model Stat)
+allStatFocuses =
+  [ strength
+  , speed
+  , vitality
+  , endurance
+  , luck
   ]
 
 allStats : Model -> List Stat
 allStats model =
-  allStatFields
-    |> List.map (\f -> f model)
+  allStatFocuses
+    |> List.map (\f -> get f model)
 
 allStatsCount : Int
 allStatsCount =
-  List.length allStatFields
+  List.length allStatFocuses
 
 level : Model -> Float
 level model =
@@ -289,8 +279,8 @@ level model =
     |> List.sum
     |> \n -> n / (toFloat allStatsCount)
 
-totalCostValue : WrapModel -> Int
-totalCostValue (WrapModel model) =
+totalCostValue : Model -> Int
+totalCostValue model =
   let
     (a, b, c) =
       (0, 1, 0)
