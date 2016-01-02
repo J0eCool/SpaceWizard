@@ -243,14 +243,19 @@ levelUp delta stat =
   { stat | level = stat.level + delta }
 
 cost : Float -> Focus Model Stat -> Model -> Currency.Bundle
-cost delta focus model =
+cost =
+  generalCost totalCostValue levelUp
+
+generalCost : (a -> Currency.Bundle) -> (Float -> b -> b) ->
+  Float -> Focus a b -> a -> Currency.Bundle
+generalCost totalCost levelUp delta focus model =
   let
     stat = get focus model
-    cur = totalCostValue model
-    nextStat = { stat | level = stat.level + delta }
-    next = totalCostValue (set focus nextStat model)
+    (currency, cur) = totalCost model
+    nextStat = levelUp delta stat
+    (_, next) = totalCost (set focus nextStat model)
   in
-    ( Currency.Experience
+    ( currency
     , next - cur
     )
 
@@ -279,7 +284,7 @@ level model =
     |> List.sum
     |> \n -> n / (toFloat allStatsCount)
 
-totalCostValue : Model -> Int
+totalCostValue : Model -> Currency.Bundle
 totalCostValue model =
   let
     (a, b, c) =
@@ -295,7 +300,10 @@ totalCostValue model =
         |> List.sum
     totalCost =
       totalLevel * baseCost
-  in floor totalCost
+  in
+    ( Currency.Experience
+    , floor totalCost
+    )
 
 attackDamage : Equipment.Model -> Model -> Int
 attackDamage equip model =
