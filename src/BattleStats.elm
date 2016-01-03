@@ -5,9 +5,11 @@ import Focus exposing (..)
 import Html exposing (Html, div, h3, text, span, button, ul, li)
 import Html.Events exposing (onMouseDown, onMouseUp, onMouseEnter, onMouseLeave)
 
+import Cost
 import Currency
 import Equipment
 import Format
+import ListUtil exposing (mapSum)
 import Style exposing (..)
 import Widgets.ProgressBar as ProgressBar
 
@@ -78,6 +80,8 @@ speed = create .speed <| \f m -> { m | speed = f m.speed }
 vitality = create .vitality <| \f m -> { m | vitality = f m.vitality }
 endurance = create .endurance <| \f m -> { m | endurance = f m.endurance }
 luck = create .luck <| \f m -> { m | luck = f m.luck }
+
+level = create .level <| \f s -> { s | level = f s.level }
 
 update : Action -> Model -> (Model, List Currency.Bundle)
 update action model =
@@ -227,7 +231,7 @@ viewDerivedStats equip model =
     f = Format.float
     items =
       List.map viewStat
-        [ ("Level", f, level)
+        [ ("Level", f, totalLevel)
         , ("Max Health", i, toFloat << maxHealth)
         , ("Attack Damage", i, toFloat << attackDamage equip)
         , ("Attack Speed", f, attackSpeed equip)
@@ -243,21 +247,8 @@ levelUp delta stat =
   { stat | level = stat.level + delta }
 
 cost : Float -> Focus Model Stat -> Model -> Currency.Bundle
-cost =
-  generalCost totalCostValue levelUp
-
-generalCost : (a -> Currency.Bundle) -> (Float -> b -> b) ->
-  Float -> Focus a b -> a -> Currency.Bundle
-generalCost totalCost levelUp delta focus model =
-  let
-    stat = get focus model
-    (currency, cur) = totalCost model
-    nextStat = levelUp delta stat
-    (_, next) = totalCost (set focus nextStat model)
-  in
-    ( currency
-    , next - cur
-    )
+cost delta focus model =
+  Cost.cost totalCostValue delta (focus => level) model
 
 allStatFocuses : List (Focus Model Stat)
 allStatFocuses =
@@ -277,8 +268,8 @@ allStatsCount : Int
 allStatsCount =
   List.length allStatFocuses
 
-level : Model -> Float
-level model =
+totalLevel : Model -> Float
+totalLevel model =
   allStats model
     |> List.map .level
     |> List.sum
@@ -287,19 +278,14 @@ level model =
 totalCostValue : Model -> Currency.Bundle
 totalCostValue model =
   let
-    (a, b, c) =
-      (0, 1, 0)
     cost stat =
-      let l = stat.level
-      in l * (c + l * (b + l * a)) -- ax^3 + bx^2 + cx
-    totalLevel =
-      level model
+      Cost.base (0, 1, 0) stat.level
+    level =
+      totalLevel model
     baseCost =
-      allStats model
-        |> List.map cost
-        |> List.sum
+      mapSum cost <| allStats model
     totalCost =
-      totalLevel * baseCost
+      level * baseCost
   in
     ( Currency.Experience
     , floor totalCost
@@ -311,7 +297,7 @@ attackDamage equip model =
     wep = toFloat <| Equipment.attackDamage equip
     str = model.strength.level - 1
     strMod = 1 + 0.1 * str
-    lv = level model - 1
+    lv = totalLevel model - 1
     lvMod = 1 + 0.025 * lv
   in round <| wep * strMod * lvMod
 
@@ -328,7 +314,7 @@ maxHealth model =
   let
     vit = model.vitality.level - 1
     base = 100 + 10 * vit
-    lv = level model - 1
+    lv = totalLevel model - 1
     lvMod = 1 + 0.05 * lv
   in round <| base * lvMod
 

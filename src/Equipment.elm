@@ -1,10 +1,13 @@
 module Equipment where
 
+import Focus exposing (..)
 import Html exposing (Html, div, span, h3, h4, text, button, ul, li)
 import Html.Events exposing (onClick)
 
+import Cost
+import Currency
 import Format
-import ListUtil exposing (contains, remove, replaceFirst)
+import ListUtil exposing (contains, remove, replaceFirst, mapSum)
 
 type alias Model =
   { weapon : Weapon
@@ -47,6 +50,14 @@ init =
       ]
   }
 
+weaponInit : Weapon
+weaponInit =
+  { name = "DEFAULT"
+  , damage = 1
+  , attackSpeed = 1
+  , level = 1
+  }
+
 attackDamage : Model -> Int
 attackDamage model =
   weaponDamage model.weapon
@@ -68,21 +79,25 @@ armor model =
   let arm = model.armor - 1
   in round <| 5 + arm
 
-update : Action -> Model -> Model
+update : Action -> Model -> (Model, List Currency.Bundle)
 update action model =
-  case action of
+  let no m = (m, [])
+  in case action of
     NoOp ->
-      model
+      no model
     Upgrade weapon ->
-      let upgraded = { weapon | level = weapon.level + 1 }
-      in if model.weapon == weapon then
-        { model | weapon = upgraded }
-      else
-        let updatedInv = replaceFirst weapon upgraded model.inventory
-        in { model | inventory = updatedInv }
+      let
+        upgraded =
+          { weapon | level = weapon.level + 1 }
+        focus =
+          focusFor weapon model
+        upgradeCost =
+          cost 1 focus model
+      in
+        (set focus upgraded model, [upgradeCost])
     Equip weapon ->
       if model.weapon == weapon then
-        model
+        no model
       else
         let
           removedInv =
@@ -93,7 +108,7 @@ update action model =
           { model
           | weapon = weapon
           , inventory = addedInv
-          }
+          } |> no
 
 view : Signal.Address Action -> Model -> Html
 view address model =
@@ -101,16 +116,22 @@ view address model =
     [ h3 [] [text "Equipment"]
     , div []
       [ text "Equipped weapon"
-      , viewWeapon address div model.weapon
+      , viewWeapon address div model model.weapon
       ]
     , div [] [text <| "Armor: " ++ Format.float model.armor]
     , h3 [] [text "Inventory"]
-    , ul [] <| List.map (viewWeapon address li) model.inventory
+    , ul [] <| List.map (viewWeapon address li model) model.inventory
     ]
 
-viewWeapon : Signal.Address Action -> (List Html.Attribute -> List Html -> Html) -> Weapon -> Html
-viewWeapon address elem weapon =
-  elem []
+viewWeapon : Signal.Address Action -> (List Html.Attribute -> List Html -> Html) ->
+  Model -> Weapon -> Html
+viewWeapon address elem model weapon =
+  let
+    focus =
+      focusFor weapon model
+    upgradeCost =
+      cost 1 focus model
+  in elem []
     [ div []
         [ text
             <| weapon.name
@@ -124,6 +145,38 @@ viewWeapon address elem weapon =
         , li []
             [ button [onClick address <| Equip weapon] [text "Equip"] ]
         , li []
-            [ button [onClick address <| Upgrade weapon] [text "Upgrade"]]
+            [ button [onClick address <| Upgrade weapon] [text <| "Upgrade (" ++ Format.currency upgradeCost ++ ")"]]
         ]
     ]
+
+equippedWeapon = create .weapon <| \f m -> { m | weapon = f m.weapon }
+inventoryWeapon wep =
+  create (always wep)
+    <| \f m -> { m | inventory = replaceFirst wep (f wep) m.inventory }
+focusFor weapon model =
+  if model.weapon == weapon then
+    equippedWeapon
+  else
+    inventoryWeapon weapon
+
+level = create .level <| \f w -> { w | level = f w.level}
+
+cost : Float -> Focus Model Weapon -> Model -> Currency.Bundle
+cost delta weapon model =
+  Cost.cost totalCost delta (weapon => level) model
+
+totalCost : Model -> Currency.Bundle
+totalCost model =
+  let
+    cost wep =
+      Cost.base (2, 1, 2) wep.level
+    equippedCost =
+      cost model.weapon
+    inventoryCost =
+      mapSum cost model.inventory
+    totalCost =
+      equippedCost + inventoryCost
+  in
+    ( Currency.Gold
+    , floor totalCost
+    )

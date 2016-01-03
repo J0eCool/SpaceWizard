@@ -74,3 +74,9 @@ replaceFirst x with list =
         with :: ys
       else
         y :: replaceFirst x with ys
+
+mapSum : (a -> number) -> List a -> number
+mapSum f list =
+  list
+    |> List.map f
+    |> List.sum

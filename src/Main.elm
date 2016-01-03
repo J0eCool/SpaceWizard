@@ -112,9 +112,11 @@ update action model =
       in tryPurchase statSetter statUpdate model
     EquipAction eAction ->
       let
-        updatedEquipment =
+        equipUpdate =
           Equipment.update eAction model.equipment
-      in { model | equipment = updatedEquipment }
+        equipSetter e m =
+          { m | equipment = e }
+      in tryPurchase equipSetter equipUpdate model
     KeyPress key ->
       let
         battle' =
