@@ -6,9 +6,11 @@ import ListUtil
 
 type Type
   = Invalid -- Used for default for to/fromEnum
-  | Gold
   | Experience
+  | Gold
   | Iron
+  | Aluminum
+  | Steel
 
 type alias Bundle =
   (Type, Int)
@@ -28,17 +30,25 @@ toKind t =
       { abbreviation = "INVALID"
       , enum = -1
       }
-    Gold ->
-      { abbreviation = "G"
-      , enum = 0
-      }
     Experience ->
       { abbreviation = "EXP"
+      , enum = 0
+      }
+    Gold ->
+      { abbreviation = "G"
       , enum = 1
       }
     Iron ->
       { abbreviation = "Ir"
       , enum = 2
+      }
+    Aluminum ->
+      { abbreviation = "Al"
+      , enum = 3
+      }
+    Steel ->
+      { abbreviation = "St"
+      , enum = 4
       }
 
 allTypes : List Type
@@ -46,6 +56,8 @@ allTypes =
   [ Gold
   , Experience
   , Iron
+  , Aluminum
+  , Steel
   ]
 
 abbreviation : Type -> String

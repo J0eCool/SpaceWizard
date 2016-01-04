@@ -94,19 +94,23 @@ update action model =
     SelectMaterial mat ->
       no { model | selectedWeaponMaterial = mat }
     Craft ->
-      let
-        new =
-          Weapon.init model.selectedWeaponType model.selectedWeaponMaterial 1 model.nextId
-      in no
+      no
         { model
-        | inventory = model.inventory ++ [new]
+        | inventory = model.inventory ++ [toCraft model]
         , nextId = model.nextId + 1
         }
+
+toCraft : Model -> Weapon.Model
+toCraft model =
+  Weapon.init model.selectedWeaponType model.selectedWeaponMaterial 1 model.nextId
+
+inline = style [display InlineBlock]
+inlineTop = style [display InlineBlock, verticalAlign Top]
 
 view : Signal.Address Action -> Model -> Html
 view address model =
   div []
-    [ div [style [display InlineBlock]]
+    [ div [inline]
       [ h3 [] [text "Equipment"]
       , div []
         [ text "Equipped weapon"
@@ -114,9 +118,9 @@ view address model =
         ]
       , div [] [text <| "Armor: " ++ Format.float model.armor]
       ]
-    , div [style [display InlineBlock, verticalAlign Top]]
+    , div [inlineTop]
       [ h3 [] [text "Inventory"]
-      , ul [] <| List.map (viewWeapon address (li [style [display InlineBlock]]) model) model.inventory
+      , ul [] <| List.map (viewWeapon address (li [inline]) model) model.inventory
       ]
     , viewCrafting address model
     ]
@@ -131,17 +135,39 @@ viewWeapon address elem model weapon =
       cost 1 focus model
     isEquipped =
       model.weapon == weapon
+    upgradeButton =
+      [ li []
+          [ button [onClick address <| Upgrade weapon]
+            [text <| "Upgrade (" ++ Format.currency upgradeCost ++ ")"]
+          ]
+      ]
     inventoryActionButtons =
       if isEquipped then
         []
       else
         [ li []
           [ button [onClick address <| Equip weapon]
-            [text "Equip"] ]
+            [text "Equip"]
+          ]
         , li []
           [ button [onClick address <| Discard weapon]
-            [text "Discard"]]
+            [text "Discard"]
+          ]
         ]
+    buttons =
+      upgradeButton ++ inventoryActionButtons
+  in
+    viewBaseWeapon elem buttons weapon
+
+viewBaseWeapon : (List Html -> Html) -> List Html -> Weapon.Model -> Html
+viewBaseWeapon elem buttons weapon =
+  let
+    damage =
+      Weapon.damage weapon
+    speed =
+      Weapon.speed weapon
+    dps =
+      toFloat damage * speed
   in elem
     [ div []
         [ text
@@ -151,25 +177,33 @@ viewWeapon address elem model weapon =
             ++ ")"
         ]
     , ul [] (
-        [ li [] [text <| "Damage " ++ Format.int (Weapon.damage weapon)]
-        , li [] [text <| "Attack Speed " ++ Format.float (Weapon.speed weapon) ++ "/s"]
-        , li []
-          [ button [onClick address <| Upgrade weapon]
-            [text <| "Upgrade (" ++ Format.currency upgradeCost ++ ")"]]
+        [ li [] [text <| "Damage " ++ Format.int damage]
+        , li [] [text <| "Attack Speed " ++ Format.float speed ++ "/s"]
+        , li [] [text <| "DPS " ++ Format.float dps]
         ]
-        ++ inventoryActionButtons
+        ++ buttons
       )
     ]
 
 viewCrafting : Signal.Address Action -> Model -> Html
 viewCrafting address model =
   let
-    radio act t =
-      li [] [Widgets.radio address (toString t) (act t) (model.selectedWeaponType == t)]
+    radio act cmp t =
+      li [] [Widgets.radio address (toString t) (act t) (cmp == t)]
   in div []
     [ h3 [] [text "Crafting"]
-    , span [] [text "Type"]
-    , ul [] <| List.map (radio SelectType) Weapon.allTypes
+    , div [inline]
+      [ text "Type"
+      , ul [] <| List.map (radio SelectType model.selectedWeaponType) Weapon.allTypes
+      ]
+    , div [inlineTop]
+      [ text "Material"
+      , ul [] <| List.map (radio SelectMaterial model.selectedWeaponMaterial) Weapon.allMaterials
+      ]
+    , div [inlineTop]
+      [ text "Result"
+      , viewBaseWeapon (div []) [] (toCraft model)
+      ]
     , button [onClick address Craft] [text "Craft"]
     ]
 

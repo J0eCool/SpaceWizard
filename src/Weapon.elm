@@ -72,9 +72,17 @@ currencyToMaterial currency =
   in case currency of
     Currency.Iron ->
       base 1 1
+    Currency.Aluminum ->
+      base 0.9 1.3
+    Currency.Steel ->
+      base 1.4 1
     _ ->
       let invalid = base 0 0
       in { invalid | name = "INVALID" }
+
+allMaterials : List Currency.Type
+allMaterials =
+  List.filter (\c -> (currencyToMaterial c).name /= "INVALID") Currency.allTypes
 
 name : Model -> String
 name weapon =
@@ -86,8 +94,12 @@ damage weapon =
     dmg = toFloat weapon.kind.damage
     lv = weapon.level - 1
     lvMod = 1 + 0.25 * lv
-  in round <| dmg * lvMod
+    matMod = weapon.material.damage
+  in round <| dmg * lvMod * matMod
 
 speed : Model -> Float
 speed weapon =
-  weapon.kind.attackSpeed
+  let
+    spd = weapon.kind.attackSpeed
+    matMod = weapon.material.speed
+  in spd * matMod
