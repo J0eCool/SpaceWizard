@@ -9,33 +9,33 @@ import Currency
 import Format
 import ListUtil exposing (contains, remove, replaceFirst, mapSum)
 import Weapon
+import Widgets
 
 type alias Model =
   { weapon : Weapon.Model
   , armor : Float
   , inventory : List Weapon.Model
+  , selectedWeaponType : Weapon.Type
   }
-
-type Action
-  = NoOp
-  | Upgrade Weapon.Model
-  | Equip Weapon.Model
 
 init : Model
 init =
-  { weapon =
-      weaponInit
-  , armor =
-      1
-  , inventory =
-      [ Weapon.init Weapon.Dagger 1
-      , Weapon.init Weapon.Axe 1
-      ]
+  { weapon = weaponInit
+  , armor = 1
+  , inventory = []
+  , selectedWeaponType = Weapon.Sword
   }
 
 weaponInit : Weapon.Model
 weaponInit =
   Weapon.init Weapon.Sword 1
+
+type Action
+  = NoOp
+  | Upgrade Weapon.Model
+  | Equip Weapon.Model
+  | Select Weapon.Type
+  | Craft
 
 attackDamage : Model -> Int
 attackDamage model =
@@ -80,6 +80,10 @@ update action model =
           | weapon = weapon
           , inventory = addedInv
           } |> no
+    Select t ->
+      no { model | selectedWeaponType = t }
+    Craft ->
+      no { model | inventory = model.inventory ++ [Weapon.init model.selectedWeaponType 1]}
 
 view : Signal.Address Action -> Model -> Html
 view address model =
@@ -92,6 +96,8 @@ view address model =
     , div [] [text <| "Armor: " ++ Format.float model.armor]
     , h3 [] [text "Inventory"]
     , ul [] <| List.map (viewWeapon address li model) model.inventory
+    , h3 [] [text "Crafting"]
+    , viewCrafting address model
     ]
 
 viewWeapon : Signal.Address Action -> (List Html.Attribute -> List Html -> Html) ->
@@ -105,7 +111,7 @@ viewWeapon address elem model weapon =
   in elem []
     [ div []
         [ text
-            <| weapon.kind.name
+            <| Weapon.name weapon
             ++ " (lv "
             ++ Format.float weapon.level
             ++ ")"
@@ -118,6 +124,17 @@ viewWeapon address elem model weapon =
         , li []
             [ button [onClick address <| Upgrade weapon] [text <| "Upgrade (" ++ Format.currency upgradeCost ++ ")"]]
         ]
+    ]
+
+viewCrafting : Signal.Address Action -> Model -> Html
+viewCrafting address model =
+  let
+    radio t =
+      li [] [Widgets.radio address (toString t) (Select t) (model.selectedWeaponType == t)]
+  in div []
+    [ span [] [text "Type"]
+    , ul [] <| List.map radio Weapon.allTypes
+    , button [onClick address Craft] [text "Craft"]
     ]
 
 equippedWeapon = create .weapon <| \f m -> { m | weapon = f m.weapon }
@@ -140,7 +157,7 @@ totalCost : Model -> Currency.Bundle
 totalCost model =
   let
     cost wep =
-      Cost.base (2, 1, 2) 1.10 wep.level
+      round <| Cost.base (2, 1, 2) 1.10 wep.level
     equippedCost =
       cost model.weapon
     inventoryCost =
@@ -149,5 +166,5 @@ totalCost model =
       equippedCost + inventoryCost
   in
     ( Currency.Gold
-    , floor totalCost
+    , totalCost
     )

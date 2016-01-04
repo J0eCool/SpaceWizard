@@ -16,6 +16,13 @@ type Type
   | Dagger
   | Axe
 
+allTypes : List Type
+allTypes =
+  [ Sword
+  , Dagger
+  , Axe
+  ]
+
 init : Type -> Float -> Model
 init t level =
   let kind = typeToKind t
@@ -39,6 +46,10 @@ typeToKind t =
       base 15 1.5
     Axe ->
       base 26 1
+
+name : Model -> String
+name weapon =
+  weapon.kind.name
 
 damage : Model -> Int
 damage weapon =

@@ -1,8 +1,8 @@
 module Battle where
 
 import Color
-import Html exposing (Html, div, span, h3, text, ul, li, button, input)
-import Html.Attributes exposing (type', checked, disabled)
+import Html exposing (Html, div, span, h3, text, ul, li, button)
+import Html.Attributes exposing (disabled)
 import Html.Events exposing (onClick)
 
 import BattleStats exposing (attackDamage, attackSpeed, goldBonusMultiplier)
@@ -11,6 +11,7 @@ import Equipment
 import Format
 import Keys exposing (Key(..), Arrow(..))
 import Operators exposing (..)
+import Widgets
 import Widgets.ProgressBar as ProgressBar
 
 type alias Model =
@@ -327,9 +328,9 @@ view address ctx model =
     , viewRewards ctx model
     , spawnButton
     , div []
-        [ checkbox address "Pause" TogglePause model.isPaused
-        , checkbox address "Auto-spawn" ToggleAutoSpawn model.autoSpawn
-        , checkbox address "Auto-progress" ToggleAutoProgress model.autoProgress
+        [ Widgets.checkbox address "Pause" TogglePause model.isPaused
+        , Widgets.checkbox address "Auto-spawn" ToggleAutoSpawn model.autoSpawn
+        , Widgets.checkbox address "Auto-progress" ToggleAutoProgress model.autoProgress
         ]
     ]
 
@@ -372,18 +373,6 @@ viewEntity title isPlayer stats entity =
       ]
       ++ enemyStats
       )
-
-checkbox : Signal.Address Action -> String -> Action -> Bool -> Html
-checkbox address label action value =
-  span []
-    [ text <| label ++ ": "
-    , input
-      [ type' "checkbox"
-      , checked value
-      , onClick address action
-      ]
-      []
-    ]
 
 viewLevel : Signal.Address Action -> Model -> Html
 viewLevel address model =
