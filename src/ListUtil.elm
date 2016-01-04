@@ -65,15 +65,15 @@ remove x list =
       else
         y :: remove x ys
 
-replaceFirst : a -> a -> List a -> List a
-replaceFirst x with list =
+replace : a -> a -> List a -> List a
+replace x with list =
   case list of
     [] -> []
     (y :: ys) ->
       if x == y then
         with :: ys
       else
-        y :: replaceFirst x with ys
+        y :: replace x with ys
 
 mapSum : (a -> number) -> List a -> number
 mapSum f list =

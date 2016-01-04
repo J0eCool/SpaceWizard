@@ -7,7 +7,7 @@ import Html.Events exposing (onClick)
 import Cost
 import Currency
 import Format
-import ListUtil exposing (contains, remove, replaceFirst, mapSum)
+import ListUtil exposing (contains, remove, replace, mapSum)
 import Weapon
 import Widgets
 
@@ -16,6 +16,7 @@ type alias Model =
   , armor : Float
   , inventory : List Weapon.Model
   , selectedWeaponType : Weapon.Type
+  , nextId : Int
   }
 
 init : Model
@@ -24,16 +25,18 @@ init =
   , armor = 1
   , inventory = []
   , selectedWeaponType = Weapon.Sword
+  , nextId = 1
   }
 
 weaponInit : Weapon.Model
 weaponInit =
-  Weapon.init Weapon.Sword 1
+  Weapon.init Weapon.Sword 1 0
 
 type Action
   = NoOp
   | Upgrade Weapon.Model
   | Equip Weapon.Model
+  | Discard Weapon.Model
   | Select Weapon.Type
   | Craft
 
@@ -80,10 +83,19 @@ update action model =
           | weapon = weapon
           , inventory = addedInv
           } |> no
+    Discard weapon ->
+      no { model | inventory = remove weapon model.inventory }
     Select t ->
       no { model | selectedWeaponType = t }
     Craft ->
-      no { model | inventory = model.inventory ++ [Weapon.init model.selectedWeaponType 1]}
+      let
+        new =
+          Weapon.init model.selectedWeaponType 1 model.nextId
+      in no
+        { model
+        | inventory = model.inventory ++ [new]
+        , nextId = model.nextId + 1
+        }
 
 view : Signal.Address Action -> Model -> Html
 view address model =
@@ -108,6 +120,19 @@ viewWeapon address elem model weapon =
       focusFor weapon model
     upgradeCost =
       cost 1 focus model
+    isEquipped =
+      model.weapon == weapon
+    inventoryActionButtons =
+      if isEquipped then
+        []
+      else
+        [ li []
+          [ button [onClick address <| Equip weapon]
+            [text "Equip"] ]
+        , li []
+          [ button [onClick address <| Discard weapon]
+            [text "Discard"]]
+        ]
   in elem []
     [ div []
         [ text
@@ -116,14 +141,15 @@ viewWeapon address elem model weapon =
             ++ Format.float weapon.level
             ++ ")"
         ]
-    , ul []
+    , ul [] (
         [ li [] [text <| "Damage " ++ Format.int (Weapon.damage weapon)]
         , li [] [text <| "Attack Speed " ++ Format.float (Weapon.speed weapon) ++ "/s"]
         , li []
-            [ button [onClick address <| Equip weapon] [text "Equip"] ]
-        , li []
-            [ button [onClick address <| Upgrade weapon] [text <| "Upgrade (" ++ Format.currency upgradeCost ++ ")"]]
+          [ button [onClick address <| Upgrade weapon]
+            [text <| "Upgrade (" ++ Format.currency upgradeCost ++ ")"]]
         ]
+        ++ inventoryActionButtons
+      )
     ]
 
 viewCrafting : Signal.Address Action -> Model -> Html
@@ -140,7 +166,7 @@ viewCrafting address model =
 equippedWeapon = create .weapon <| \f m -> { m | weapon = f m.weapon }
 inventoryWeapon wep =
   create (always wep)
-    <| \f m -> { m | inventory = replaceFirst wep (f wep) m.inventory }
+    <| \f m -> { m | inventory = replace wep (f wep) m.inventory }
 focusFor weapon model =
   if model.weapon == weapon then
     equippedWeapon

@@ -3,6 +3,7 @@ module Weapon where
 type alias Model =
   { kind : Kind
   , level : Float
+  , id : Int
   }
 
 type alias Kind =
@@ -23,12 +24,13 @@ allTypes =
   , Axe
   ]
 
-init : Type -> Float -> Model
-init t level =
+init : Type -> Float -> Int -> Model
+init t level id =
   let kind = typeToKind t
   in
     { kind = kind
     , level = level
+    , id = id
     }
 
 typeToKind : Type -> Kind
