@@ -8,87 +8,42 @@ import Cost
 import Currency
 import Format
 import ListUtil exposing (contains, remove, replaceFirst, mapSum)
+import Weapon
 
 type alias Model =
-  { weapon : Weapon
+  { weapon : Weapon.Model
   , armor : Float
-  , inventory : List Weapon
-  }
-
-type alias WeaponKind =
-  { name : String
-  , damage : Int
-  , attackSpeed : Float
-  }
-
-type alias Weapon =
-  { kind : WeaponKind
-  , level : Float
+  , inventory : List Weapon.Model
   }
 
 type Action
   = NoOp
-  | Upgrade Weapon
-  | Equip Weapon
+  | Upgrade Weapon.Model
+  | Equip Weapon.Model
 
 init : Model
 init =
   { weapon =
-    { kind =
-      { name = "Sword"
-      , damage = 20
-      , attackSpeed = 1.2
-      }
-    , level = 1
-    }
-  , armor = 1
+      weaponInit
+  , armor =
+      1
   , inventory =
-      [ { kind =
-          { name = "Dagger"
-          , damage = 15
-          , attackSpeed = 1.5
-          }
-        , level = 1
-        }
-      , { kind =
-          { name = "Axe"
-          , damage = 26
-          , attackSpeed = 1.0
-          }
-        , level = 1
-        }
+      [ Weapon.init Weapon.Dagger 1
+      , Weapon.init Weapon.Axe 1
       ]
   }
 
-weaponInit : Weapon
+weaponInit : Weapon.Model
 weaponInit =
-  { kind =
-    { name = "DEFAULT"
-    , damage = 1
-    , attackSpeed = 1
-    }
-  , level = 1
-  }
+  Weapon.init Weapon.Sword 1
 
 attackDamage : Model -> Int
 attackDamage model =
-  weaponDamage model.weapon
-
-weaponDamage : Weapon -> Int
-weaponDamage weapon =
-  let
-    dmg = toFloat weapon.kind.damage
-    lv = weapon.level - 1
-    lvMod = 1 + 0.25 * lv
-  in round <| dmg * lvMod
+  Weapon.damage model.weapon
 
 attackSpeed : Model -> Float
 attackSpeed model =
-  model.weapon.kind.attackSpeed
-
-weaponSpeed : Weapon -> Float
-weaponSpeed weapon =
-  weapon.kind.attackSpeed
+  Weapon.speed model.weapon
 
 armor : Model -> Int
 armor model =
@@ -140,7 +95,7 @@ view address model =
     ]
 
 viewWeapon : Signal.Address Action -> (List Html.Attribute -> List Html -> Html) ->
-  Model -> Weapon -> Html
+  Model -> Weapon.Model -> Html
 viewWeapon address elem model weapon =
   let
     focus =
@@ -156,8 +111,8 @@ viewWeapon address elem model weapon =
             ++ ")"
         ]
     , ul []
-        [ li [] [text <| "Damage " ++ Format.int (weaponDamage weapon)]
-        , li [] [text <| "Attack Speed " ++ Format.float (weaponSpeed weapon) ++ "/s"]
+        [ li [] [text <| "Damage " ++ Format.int (Weapon.damage weapon)]
+        , li [] [text <| "Attack Speed " ++ Format.float (Weapon.speed weapon) ++ "/s"]
         , li []
             [ button [onClick address <| Equip weapon] [text "Equip"] ]
         , li []
@@ -177,7 +132,7 @@ focusFor weapon model =
 
 level = create .level <| \f w -> { w | level = f w.level}
 
-cost : Float -> Focus Model Weapon -> Model -> Currency.Bundle
+cost : Float -> Focus Model Weapon.Model -> Model -> Currency.Bundle
 cost delta weapon model =
   Cost.cost totalCost delta (weapon => level) model
 
