@@ -15,10 +15,14 @@ type alias Model =
   , inventory : List Weapon
   }
 
-type alias Weapon =
+type alias WeaponKind =
   { name : String
   , damage : Int
   , attackSpeed : Float
+  }
+
+type alias Weapon =
+  { kind : WeaponKind
   , level : Float
   }
 
@@ -30,21 +34,27 @@ type Action
 init : Model
 init =
   { weapon =
-    { name = "Sword"
-    , damage = 20
-    , attackSpeed = 1.2
+    { kind =
+      { name = "Sword"
+      , damage = 20
+      , attackSpeed = 1.2
+      }
     , level = 1
     }
   , armor = 1
   , inventory =
-      [ { name = "Dagger"
-        , damage = 15
-        , attackSpeed = 1.5
+      [ { kind =
+          { name = "Dagger"
+          , damage = 15
+          , attackSpeed = 1.5
+          }
         , level = 1
         }
-      , { name = "Axe"
-        , damage = 26
-        , attackSpeed = 1.0
+      , { kind =
+          { name = "Axe"
+          , damage = 26
+          , attackSpeed = 1.0
+          }
         , level = 1
         }
       ]
@@ -52,9 +62,11 @@ init =
 
 weaponInit : Weapon
 weaponInit =
-  { name = "DEFAULT"
-  , damage = 1
-  , attackSpeed = 1
+  { kind =
+    { name = "DEFAULT"
+    , damage = 1
+    , attackSpeed = 1
+    }
   , level = 1
   }
 
@@ -65,14 +77,18 @@ attackDamage model =
 weaponDamage : Weapon -> Int
 weaponDamage weapon =
   let
-    dmg = toFloat weapon.damage
+    dmg = toFloat weapon.kind.damage
     lv = weapon.level - 1
     lvMod = 1 + 0.25 * lv
   in round <| dmg * lvMod
 
 attackSpeed : Model -> Float
 attackSpeed model =
-  model.weapon.attackSpeed
+  model.weapon.kind.attackSpeed
+
+weaponSpeed : Weapon -> Float
+weaponSpeed weapon =
+  weapon.kind.attackSpeed
 
 armor : Model -> Int
 armor model =
@@ -134,14 +150,14 @@ viewWeapon address elem model weapon =
   in elem []
     [ div []
         [ text
-            <| weapon.name
+            <| weapon.kind.name
             ++ " (lv "
             ++ Format.float weapon.level
             ++ ")"
         ]
     , ul []
         [ li [] [text <| "Damage " ++ Format.int (weaponDamage weapon)]
-        , li [] [text <| "Attack Speed " ++ Format.float weapon.attackSpeed ++ "/s"]
+        , li [] [text <| "Attack Speed " ++ Format.float (weaponSpeed weapon) ++ "/s"]
         , li []
             [ button [onClick address <| Equip weapon] [text "Equip"] ]
         , li []
