@@ -8,6 +8,7 @@ import Cost
 import Currency
 import Format
 import ListUtil exposing (contains, remove, replace, mapSum)
+import Style exposing (..)
 import Weapon
 import Widgets
 
@@ -100,19 +101,22 @@ update action model =
 view : Signal.Address Action -> Model -> Html
 view address model =
   div []
-    [ h3 [] [text "Equipment"]
-    , div []
-      [ text "Equipped weapon"
-      , viewWeapon address div model model.weapon
+    [ div [style [display InlineBlock]]
+      [ h3 [] [text "Equipment"]
+      , div []
+        [ text "Equipped weapon"
+        , viewWeapon address (div []) model model.weapon
+        ]
+      , div [] [text <| "Armor: " ++ Format.float model.armor]
       ]
-    , div [] [text <| "Armor: " ++ Format.float model.armor]
-    , h3 [] [text "Inventory"]
-    , ul [] <| List.map (viewWeapon address li model) model.inventory
-    , h3 [] [text "Crafting"]
+    , div [style [display InlineBlock, verticalAlign Top]]
+      [ h3 [] [text "Inventory"]
+      , ul [] <| List.map (viewWeapon address (li [style [display InlineBlock]]) model) model.inventory
+      ]
     , viewCrafting address model
     ]
 
-viewWeapon : Signal.Address Action -> (List Html.Attribute -> List Html -> Html) ->
+viewWeapon : Signal.Address Action -> (List Html -> Html) ->
   Model -> Weapon.Model -> Html
 viewWeapon address elem model weapon =
   let
@@ -133,7 +137,7 @@ viewWeapon address elem model weapon =
           [ button [onClick address <| Discard weapon]
             [text "Discard"]]
         ]
-  in elem []
+  in elem
     [ div []
         [ text
             <| Weapon.name weapon
@@ -158,7 +162,8 @@ viewCrafting address model =
     radio t =
       li [] [Widgets.radio address (toString t) (Select t) (model.selectedWeaponType == t)]
   in div []
-    [ span [] [text "Type"]
+    [ h3 [] [text "Crafting"]
+    , span [] [text "Type"]
     , ul [] <| List.map radio Weapon.allTypes
     , button [onClick address Craft] [text "Craft"]
     ]
