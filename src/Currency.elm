@@ -8,6 +8,7 @@ type Type
   = Invalid -- Used for default for to/fromEnum
   | Gold
   | Experience
+  | Iron
 
 type alias Bundle =
   (Type, Int)
@@ -15,39 +16,54 @@ type alias Bundle =
 type alias FloatBundle =
   (Type, Float)
 
-enumPairing : List (Type, Int)
-enumPairing =
-  [ (Invalid, -1)
-  , (Experience, 0)
-  , (Gold, 1)
+type alias Kind =
+  { abbreviation : String
+  , enum : Int
+  }
+
+toKind : Type -> Kind
+toKind t =
+  case t of
+    Invalid ->
+      { abbreviation = "INVALID"
+      , enum = -1
+      }
+    Gold ->
+      { abbreviation = "G"
+      , enum = 0
+      }
+    Experience ->
+      { abbreviation = "EXP"
+      , enum = 1
+      }
+    Iron ->
+      { abbreviation = "Ir"
+      , enum = 2
+      }
+
+allTypes : List Type
+allTypes =
+  [ Gold
+  , Experience
+  , Iron
   ]
 
 abbreviation : Type -> String
 abbreviation t =
-  case t of
-    Gold -> "G"
-    Experience -> "EXP"
-    Invalid -> "INVALID"
+  (toKind t).abbreviation
 
 toEnum : Type -> Int
 toEnum t =
-  let
-    pred (fType, _) = fType == t
-    found = ListUtil.findWith pred enumPairing
-  in case found of
-    Just (_, fEnum) ->
-      fEnum
-    Nothing ->
-      -1
+  (toKind t).enum
 
 fromEnum : Int -> Type
 fromEnum e =
   let
-    pred (_, fEnum) = fEnum == e
-    found = ListUtil.findWith pred enumPairing
+    pred t = (toKind t).enum == e
+    found = ListUtil.findWith pred allTypes
   in case found of
-    Just (fType, _) ->
-      fType
+    Just t ->
+      t
     Nothing ->
       Invalid
 

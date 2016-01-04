@@ -17,6 +17,7 @@ type alias Model =
   , armor : Float
   , inventory : List Weapon.Model
   , selectedWeaponType : Weapon.Type
+  , selectedWeaponMaterial : Currency.Type
   , nextId : Int
   }
 
@@ -26,19 +27,21 @@ init =
   , armor = 1
   , inventory = []
   , selectedWeaponType = Weapon.Sword
+  , selectedWeaponMaterial = Currency.Iron
   , nextId = 1
   }
 
 weaponInit : Weapon.Model
 weaponInit =
-  Weapon.init Weapon.Sword 1 0
+  Weapon.init Weapon.Sword Currency.Iron 1 0
 
 type Action
   = NoOp
   | Upgrade Weapon.Model
   | Equip Weapon.Model
   | Discard Weapon.Model
-  | Select Weapon.Type
+  | SelectType Weapon.Type
+  | SelectMaterial Currency.Type
   | Craft
 
 attackDamage : Model -> Int
@@ -86,12 +89,14 @@ update action model =
           } |> no
     Discard weapon ->
       no { model | inventory = remove weapon model.inventory }
-    Select t ->
+    SelectType t ->
       no { model | selectedWeaponType = t }
+    SelectMaterial mat ->
+      no { model | selectedWeaponMaterial = mat }
     Craft ->
       let
         new =
-          Weapon.init model.selectedWeaponType 1 model.nextId
+          Weapon.init model.selectedWeaponType model.selectedWeaponMaterial 1 model.nextId
       in no
         { model
         | inventory = model.inventory ++ [new]
@@ -159,12 +164,12 @@ viewWeapon address elem model weapon =
 viewCrafting : Signal.Address Action -> Model -> Html
 viewCrafting address model =
   let
-    radio t =
-      li [] [Widgets.radio address (toString t) (Select t) (model.selectedWeaponType == t)]
+    radio act t =
+      li [] [Widgets.radio address (toString t) (act t) (model.selectedWeaponType == t)]
   in div []
     [ h3 [] [text "Crafting"]
     , span [] [text "Type"]
-    , ul [] <| List.map radio Weapon.allTypes
+    , ul [] <| List.map (radio SelectType) Weapon.allTypes
     , button [onClick address Craft] [text "Craft"]
     ]
 

@@ -1,7 +1,10 @@
 module Weapon where
 
+import Currency
+
 type alias Model =
   { kind : Kind
+  , material : MaterialKind
   , level : Float
   , id : Int
   }
@@ -24,11 +27,20 @@ allTypes =
   , Axe
   ]
 
-init : Type -> Float -> Int -> Model
-init t level id =
-  let kind = typeToKind t
+type alias MaterialKind =
+  { name : String
+  , damage : Float
+  , speed : Float
+  }
+
+init : Type -> Currency.Type -> Float -> Int -> Model
+init t mat level id =
+  let
+    kind = typeToKind t
+    matKind = currencyToMaterial mat
   in
     { kind = kind
+    , material = matKind
     , level = level
     , id = id
     }
@@ -49,9 +61,24 @@ typeToKind t =
     Axe ->
       base 26 1
 
+currencyToMaterial : Currency.Type -> MaterialKind
+currencyToMaterial currency =
+  let
+    base damage speed =
+      { name = toString currency
+      , damage = damage
+      , speed = speed
+      }
+  in case currency of
+    Currency.Iron ->
+      base 1 1
+    _ ->
+      let invalid = base 0 0
+      in { invalid | name = "INVALID" }
+
 name : Model -> String
 name weapon =
-  weapon.kind.name
+  weapon.material.name ++ " " ++ weapon.kind.name
 
 damage : Model -> Int
 damage weapon =
