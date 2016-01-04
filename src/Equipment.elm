@@ -169,7 +169,7 @@ totalCost : Model -> Currency.Bundle
 totalCost model =
   let
     cost wep =
-      Cost.base (2, 1, 2) wep.level
+      Cost.base (2, 1, 2) 1.10 wep.level
     equippedCost =
       cost model.weapon
     inventoryCost =

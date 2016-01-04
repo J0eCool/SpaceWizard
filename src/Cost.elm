@@ -15,7 +15,7 @@ cost totalCost delta focus model =
     , next - cur
     )
 
-base : (Float, Float, Float) -> Float -> Float
-base (a, b, c) level =
-  -- ax^3 + bx^2 + cx
-  level * (c + level * (b + level * a))
+base : (Float, Float, Float) -> Float -> Float -> Float
+base (a, b, c) power level =
+  -- (ax^3 + bx^2 + cx) * power ^ level
+  level * (c + level * (b + level * a)) * (power ^ level)

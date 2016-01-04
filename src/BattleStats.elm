@@ -279,13 +279,13 @@ totalCostValue : Model -> Currency.Bundle
 totalCostValue model =
   let
     cost stat =
-      Cost.base (0, 1, 0) stat.level
+      Cost.base (0.2, 1, 0) 1 stat.level
     level =
       totalLevel model
     baseCost =
       mapSum cost <| allStats model
     totalCost =
-      level * baseCost
+      sqrt level * baseCost
   in
     ( Currency.Experience
     , floor totalCost
