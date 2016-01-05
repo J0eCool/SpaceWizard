@@ -101,7 +101,7 @@ update action model =
       in
         { model
         | battle = battle'
-        , inventory = Inventory.update battleRewards model.inventory
+        , inventory = Inventory.applyRewards battleRewards model.inventory
         }
     StatsAction sAction ->
       let

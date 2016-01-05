@@ -7,19 +7,29 @@ import Currency
 import Format
 
 type alias Model =
-  Dict.Dict Int Int -- Dict Type Int
+  Dict.Dict Int Partial -- Dict Type Int
+
+type alias Partial =
+  { value : Int
+  , part : Float
+  }
+
+type alias Bundle =
+  (Currency.Type, Partial)
 
 init : Model
 init =
-  [ (Currency.Gold, 0)
-  , (Currency.Experience, 0)
+  [ (Currency.Gold, initPartial)
+  , (Currency.Experience, initPartial)
   ]
     |> List.map Currency.bundleToEnum
     |> Dict.fromList
 
-update : List Currency.Bundle -> Model -> Model
-update rewards model =
-  applyRewards rewards model
+initPartial : Partial
+initPartial =
+  { value = 0
+  , part = 0
+  }
 
 view : Model -> Html
 view model =
@@ -29,26 +39,50 @@ view model =
       in ul [] lines
     ]
 
-viewCurrency : Currency.Bundle -> Html
-viewCurrency (t, amount) =
+viewCurrency : Bundle -> Html
+viewCurrency (t, partial) =
   li []
     [ span [] [text <| toString t ++ ":"]
-    , span [] [text <| Format.int amount]
+    , span [] [text <| Format.int partial.value]
     ]
 
 get : Currency.Type -> Model -> Int
 get t model =
   Dict.get (Currency.toEnum t) model
-    |> Maybe.withDefault 0
+    |> Maybe.withDefault initPartial
+    |> .value
 
-set : Currency.Bundle -> Model -> Model
-set (t, amount) model =
-  Dict.update (Currency.toEnum t) (\_ -> Just amount) model
+update : Currency.Type -> (Maybe Partial -> Maybe Partial) -> Model -> Model
+update t f model =
+  Dict.update (Currency.toEnum t) f model
 
 gain : Currency.Bundle -> Model -> Model
-gain (t, amount) model =
-  let cur = get t model
-  in set (t, cur + amount) model
+gain (t, delta) model =
+  let
+    f partial =
+      Just <| case partial of
+        Just p ->
+          { p | value = p.value + delta }
+        Nothing ->
+          { value = delta, part = 0 }
+  in update t f model
+
+gainFloat : Currency.FloatBundle -> Model -> Model
+gainFloat (t, delta) model =
+  let
+    f partial =
+      Just <| case partial of
+        Just p ->
+          let
+            updated =
+              p.part + delta
+            toAdd =
+              floor updated
+          in { value = p.value + toAdd, part = updated - toFloat toAdd }
+        Nothing ->
+          let intVal = floor delta
+          in { value = intVal, part = delta - toFloat intVal }
+  in update t f model
 
 spend : Currency.Bundle -> Model -> Result String Model
 spend (t, cost) model =
@@ -56,7 +90,7 @@ spend (t, cost) model =
     curAmt = get t model
     canAfford = curAmt >= cost
   in  if canAfford then
-      Ok <| set (t, curAmt - cost) model
+      Ok <| gain (t, -cost) model
     else
       Err <| "Not enough " ++ toString t
 
@@ -69,16 +103,15 @@ spendAll costs model =
       e -> e
   in List.foldl f (Ok model) costs
 
-
-applyReward : Currency.Bundle -> Model -> Model
-applyReward reward =
-  gain reward
-
 applyRewards : List Currency.Bundle -> Model -> Model
 applyRewards rewards model =
-  List.foldl applyReward model rewards
+  List.foldl gain model rewards
 
-map : (Currency.Bundle -> a) -> Model -> List a
+applyFloatRewards : List Currency.FloatBundle -> Model -> Model
+applyFloatRewards rewards model =
+  List.foldl gainFloat model rewards
+
+map : (Bundle -> b) -> Model -> List b
 map f model =
   Dict.toList model
     |> List.map Currency.bundleFromEnum

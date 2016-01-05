@@ -79,13 +79,13 @@ fromEnum e =
     Nothing ->
       Invalid
 
-bundleToEnum : Bundle -> (Int, Int)
-bundleToEnum (t, amount) =
-  (toEnum t, amount)
+bundleToEnum : (Type, a) -> (Int, a)
+bundleToEnum (t, packed) =
+  (toEnum t, packed)
 
-bundleFromEnum : (Int, Int) -> Bundle
-bundleFromEnum (enum, amount) =
-  (fromEnum enum, amount)
+bundleFromEnum : (Int, a) -> (Type, a)
+bundleFromEnum (enum, packed) =
+  (fromEnum enum, packed)
 
 bundleMap : (Int -> a) -> Bundle -> (Type, a)
 bundleMap f (t, amt) =
