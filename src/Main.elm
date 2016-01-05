@@ -12,6 +12,7 @@ import Time exposing (inSeconds, fps)
 
 import Battle
 import BattleStats
+import Buildings
 import Currency
 import Equipment
 import Format
@@ -23,6 +24,7 @@ type alias Model =
   , battle : Battle.Model
   , stats : BattleStats.Model
   , equipment : Equipment.Model
+  , buildings : Buildings.Model
   }
 
 type Action
@@ -30,6 +32,7 @@ type Action
   | BattleAction Battle.Action
   | StatsAction BattleStats.Action
   | EquipAction Equipment.Action
+  | BuildingAction Buildings.Action
   | KeyPress Keys.Key
 
 main : Signal Html
@@ -59,6 +62,7 @@ init =
       , battle = Battle.init battleContext
       , stats = stats
       , equipment = equip
+      , buildings = Buildings.init
       }
     , Effects.none
     )
@@ -79,6 +83,7 @@ view address model =
     , lazy Inventory.view model.inventory
     , lazy2 (BattleStats.view <| fwd StatsAction) model.equipment model.stats
     , lazy (Equipment.view <| fwd EquipAction) model.equipment
+    , lazy (Buildings.view <| fwd BuildingAction) model.buildings
     ]
 
 update : Action -> Model -> Model
@@ -90,6 +95,7 @@ update action model =
         wrapped =
           [ BattleAction << Battle.Tick
           , StatsAction << BattleStats.Tick
+          , BuildingAction << Buildings.Tick
           ]
         actions =
           List.map (\f -> update <| f dT) wrapped
@@ -117,6 +123,15 @@ update action model =
         equipSetter e m =
           { m | equipment = e }
       in tryPurchase equipSetter equipUpdate model
+    BuildingAction action ->
+      let
+        (updatedBuildings, rewards) =
+          Buildings.update action model.buildings
+      in
+        { model
+        | buildings = updatedBuildings
+        , inventory = Inventory.applyFloatRewards rewards model.inventory
+        }
     KeyPress key ->
       let
         battle' =
