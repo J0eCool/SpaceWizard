@@ -125,13 +125,15 @@ update action model =
       in tryPurchase equipSetter equipUpdate model
     BuildingAction action ->
       let
-        (updatedBuildings, rewards) =
+        (updatedBuildings, effects) =
           Buildings.update action model.buildings
+        buildingSetter b m =
+          { m | buildings = b }
       in
         { model
-        | buildings = updatedBuildings
-        , inventory = Inventory.applyFloatRewards rewards model.inventory
+        | inventory = Inventory.applyFloatRewards effects.reward model.inventory
         }
+        |> tryPurchase buildingSetter (updatedBuildings, effects.cost)
     KeyPress key ->
       let
         battle' =
