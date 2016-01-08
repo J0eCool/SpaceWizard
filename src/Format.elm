@@ -45,6 +45,13 @@ currency : Currency.Bundle -> String
 currency =
   currencyWith int
 
+currencyList : List Currency.Bundle -> String
+currencyList list =
+  list
+    |> List.map currency
+    |> List.intersperse ", "
+    |> String.concat
+
 floatCurrency : Currency.FloatBundle -> String
 floatCurrency =
   currencyWith float

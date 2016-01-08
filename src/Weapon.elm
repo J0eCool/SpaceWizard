@@ -1,5 +1,6 @@
 module Weapon where
 
+import Cost
 import Currency
 
 type alias Model =
@@ -29,8 +30,11 @@ allTypes =
 
 type alias MaterialKind =
   { name : String
+  , currency : Currency.Type
   , damage : Float
   , speed : Float
+  , cost : Float
+  , goldCost : Float
   }
 
 init : Type -> Currency.Type -> Float -> Int -> Model
@@ -64,20 +68,23 @@ typeToKind t =
 currencyToMaterial : Currency.Type -> MaterialKind
 currencyToMaterial currency =
   let
-    base damage speed =
+    base damage speed cost goldCost =
       { name = toString currency
+      , currency = currency
       , damage = damage
       , speed = speed
+      , cost = cost
+      , goldCost = goldCost
       }
   in case currency of
     Currency.Iron ->
-      base 1 1
+      base 1 1 10 15
     Currency.Aluminum ->
-      base 0.9 1.3
+      base 0.9 1.3 25 50
     Currency.Steel ->
-      base 1.4 1
+      base 1.4 1 75 200
     _ ->
-      let invalid = base 0 0
+      let invalid = base 0 0 0 0
       in { invalid | name = "INVALID" }
 
 allMaterials : List Currency.Type
@@ -103,3 +110,19 @@ speed weapon =
     spd = weapon.kind.attackSpeed
     matMod = weapon.material.speed
   in spd * matMod
+
+craftCost : Model -> List Currency.Bundle
+craftCost weapon =
+  let
+    matCost =
+      weapon.material.cost * 10
+    goldCost =
+      weapon.material.goldCost * 20
+  in
+    [ (weapon.material.currency, matCost)
+    , (Currency.Gold, goldCost)
+    ]
+
+cost : Model -> Int
+cost wep =
+  round <| Cost.base (2, 1, 2) 1.10 wep.level * wep.material.goldCost / 15

@@ -94,11 +94,14 @@ update action model =
     SelectMaterial mat ->
       no { model | selectedWeaponMaterial = mat }
     Craft ->
-      no
-        { model
-        | inventory = model.inventory ++ [toCraft model]
-        , nextId = model.nextId + 1
-        }
+      let crafted = toCraft model
+      in
+        ( { model
+          | inventory = model.inventory ++ [crafted]
+          , nextId = model.nextId + 1
+          }
+        , Weapon.craftCost crafted
+        )
 
 toCraft : Model -> Weapon.Model
 toCraft model =
@@ -190,6 +193,8 @@ viewCrafting address model =
   let
     radio act cmp t =
       li [] [Widgets.radio address (toString t) (act t) (cmp == t)]
+    weapon =
+      toCraft model
   in div []
     [ h3 [] [text "Crafting"]
     , div [inline]
@@ -202,9 +207,9 @@ viewCrafting address model =
       ]
     , div [inlineTop]
       [ text "Result"
-      , viewBaseWeapon (div []) [] (toCraft model)
+      , viewBaseWeapon (div []) [] weapon
       ]
-    , button [onClick address Craft] [text "Craft"]
+    , button [onClick address Craft] [text <| "Craft (" ++ Format.currencyList (Weapon.craftCost weapon) ++ ")"]
     ]
 
 equippedWeapon = create .weapon <| \f m -> { m | weapon = f m.weapon }
@@ -226,12 +231,10 @@ cost delta weapon model =
 totalCost : Model -> Currency.Bundle
 totalCost model =
   let
-    cost wep =
-      round <| Cost.base (2, 1, 2) 1.10 wep.level
     equippedCost =
-      cost model.weapon
+      Weapon.cost model.weapon
     inventoryCost =
-      mapSum cost model.inventory
+      mapSum Weapon.cost model.inventory
     totalCost =
       equippedCost + inventoryCost
   in
