@@ -182,14 +182,7 @@ viewBaseStats address model =
             <| title ++ ": "
             ++ Format.float stat.level
           ]
-        , ProgressBar.viewInline
-          { width = 200
-          , height = 10
-          , color = Color.rgb 64 255 200
-          , background = Color.rgb 32 128 92
-          , curAmount = stat.level - toFloat (floor stat.level)
-          , maxAmount = 1
-          }
+        , ProgressBar.xpBar stat.level
         , upgradeButton 1 "Upgrade" (Upgrade focus)
         , upgradeButton toNext ("To " ++ Format.int next) (LimitedUpgrade next focus)
         ]

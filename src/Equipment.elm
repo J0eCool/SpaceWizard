@@ -2,7 +2,7 @@ module Equipment where
 
 import Focus exposing (..)
 import Html exposing (Html, div, span, h3, h4, text, button, ul, li)
-import Html.Events exposing (onClick)
+import Html.Events exposing (onClick, onMouseDown, onMouseUp, onMouseEnter, onMouseLeave)
 
 import Cost
 import Currency
@@ -11,6 +11,7 @@ import ListUtil exposing (contains, remove, replace, mapSum)
 import Style exposing (..)
 import Weapon
 import Widgets
+import Widgets.ProgressBar as ProgressBar
 
 type alias Model =
   { weapon : Weapon.Model
@@ -19,6 +20,7 @@ type alias Model =
   , selectedWeaponType : Weapon.Type
   , selectedWeaponMaterial : Currency.Type
   , nextId : Int
+  , heldAction : Maybe TimedAction
   }
 
 init : Model
@@ -29,6 +31,7 @@ init =
   , selectedWeaponType = Weapon.Sword
   , selectedWeaponMaterial = Currency.Iron
   , nextId = 1
+  , heldAction = Nothing
   }
 
 weaponInit : Weapon.Model
@@ -37,12 +40,17 @@ weaponInit =
 
 type Action
   = NoOp
-  | Upgrade Weapon.Model
+  | Tick Float
+  | SetHeld TimedAction
+  | Release
   | Equip Weapon.Model
   | Discard Weapon.Model
   | SelectType Weapon.Type
   | SelectMaterial Currency.Type
   | Craft
+
+type TimedAction
+  = Upgrade (Focus Model Weapon.Model)
 
 attackDamage : Model -> Int
 attackDamage model =
@@ -63,16 +71,6 @@ update action model =
   in case action of
     NoOp ->
       no model
-    Upgrade weapon ->
-      let
-        upgraded =
-          { weapon | level = weapon.level + 1 }
-        focus =
-          focusFor weapon model
-        upgradeCost =
-          cost 1 focus model
-      in
-        (set focus upgraded model, [upgradeCost])
     Equip weapon ->
       if model.weapon == weapon then
         no model
@@ -102,6 +100,30 @@ update action model =
           }
         , Weapon.craftCost crafted
         )
+    SetHeld act ->
+      no { model | heldAction = Just act }
+    Release ->
+      no { model | heldAction = Nothing }
+    Tick dT ->
+      case model.heldAction of
+        Nothing ->
+          no model
+        Just act ->
+          updateTick dT act model
+
+updateTick : Float -> TimedAction -> Model -> (Model, List Currency.Bundle)
+updateTick dT action model =
+  case action of
+    Upgrade focus ->
+      let
+        weapon =
+          get focus model
+        upgraded =
+          { weapon | level = weapon.level + dT }
+        upgradeCost =
+          cost dT focus model
+      in
+        (set focus upgraded model, [upgradeCost])
 
 toCraft : Model -> Weapon.Model
 toCraft model =
@@ -140,8 +162,20 @@ viewWeapon address elem model weapon =
       model.weapon == weapon
     upgradeButton =
       [ li []
-          [ button [onClick address <| Upgrade weapon]
-            [text <| "Upgrade (" ++ Format.currency upgradeCost ++ ")"]
+          [ span
+              [ style
+                [ display InlineBlock
+                , width <| Px 120
+                ]
+              ]
+              [ text <| "Level: " ++ Format.float weapon.level ]
+          , ProgressBar.xpBar weapon.level
+          , button
+              [ onMouseDown address <| SetHeld <| Upgrade focus
+              , onMouseUp address Release
+              , onMouseLeave address Release
+              ]
+              [ text <| "Upgrade (" ++ Format.currency upgradeCost ++ ")" ]
           ]
       ]
     inventoryActionButtons =
@@ -149,8 +183,7 @@ viewWeapon address elem model weapon =
         []
       else
         [ li []
-          [ button [onClick address <| Equip weapon]
-            [text "Equip"]
+          [ button [onClick address <| Equip weapon] [text "Equip"]
           ]
         , li []
           [ button [onClick address <| Discard weapon]
@@ -172,13 +205,7 @@ viewBaseWeapon elem buttons weapon =
     dps =
       toFloat damage * speed
   in elem
-    [ div []
-        [ text
-            <| Weapon.name weapon
-            ++ " (lv "
-            ++ Format.float weapon.level
-            ++ ")"
-        ]
+    [ div [] [ text <| Weapon.name weapon ]
     , ul [] (
         [ li [] [text <| "Damage " ++ Format.int damage]
         , li [] [text <| "Attack Speed " ++ Format.float speed ++ "/s"]

@@ -49,3 +49,14 @@ baseView displayType bar =
         [ foreground
         ]
   in background
+
+xpBar : Float -> Html
+xpBar level =
+  viewInline
+    { width = 200
+    , height = 10
+    , color = Color.rgb 64 255 200
+    , background = Color.rgb 32 128 92
+    , curAmount = level - toFloat (floor level)
+    , maxAmount = 1
+    }

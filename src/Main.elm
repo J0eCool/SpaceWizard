@@ -96,6 +96,7 @@ update action model =
           [ BattleAction << Battle.Tick
           , StatsAction << BattleStats.Tick
           , BuildingAction << Buildings.Tick
+          , EquipAction << Equipment.Tick
           ]
         actions =
           List.map (\f -> update <| f dT) wrapped
