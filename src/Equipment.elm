@@ -21,6 +21,7 @@ type alias Model =
   , selectedWeaponMaterial : Currency.Type
   , nextId : Int
   , heldAction : Maybe TimedAction
+  , upgradeVelocity : Float
   }
 
 init : Model
@@ -32,6 +33,7 @@ init =
   , selectedWeaponMaterial = Currency.Iron
   , nextId = 1
   , heldAction = Nothing
+  , upgradeVelocity = 0
   }
 
 weaponInit : Weapon.Model
@@ -103,7 +105,7 @@ update action model =
     SetHeld act ->
       no { model | heldAction = Just act }
     Release ->
-      no { model | heldAction = Nothing }
+      no { model | heldAction = Nothing, upgradeVelocity = 0 }
     Tick dT ->
       case model.heldAction of
         Nothing ->
@@ -116,14 +118,20 @@ updateTick dT action model =
   case action of
     Upgrade focus ->
       let
+        vel =
+          model.upgradeVelocity + dT
+        amt =
+          vel * dT
         weapon =
           get focus model
         upgraded =
-          { weapon | level = weapon.level + dT }
+          { weapon | level = weapon.level + amt }
         upgradeCost =
-          cost dT focus model
+          cost amt focus model
+        tickedModel =
+          { model | upgradeVelocity = vel }
       in
-        (set focus upgraded model, [upgradeCost])
+        (set focus upgraded tickedModel, [upgradeCost])
 
 toCraft : Model -> Weapon.Model
 toCraft model =
@@ -169,13 +177,15 @@ viewWeapon address elem model weapon =
                 ]
               ]
               [ text <| "Level: " ++ Format.float weapon.level ]
-          , ProgressBar.xpBar weapon.level
           , button
-              [ onMouseDown address <| SetHeld <| Upgrade focus
-              , onMouseUp address Release
-              , onMouseLeave address Release
-              ]
-              [ text <| "Upgrade (" ++ Format.currency upgradeCost ++ ")" ]
+            [ onMouseDown address <| SetHeld <| Upgrade focus
+            , onMouseUp address Release
+            , onMouseLeave address Release
+            ]
+            [ text <| "Upgrade (" ++ Format.currency upgradeCost ++ ")" ]
+          , div []
+            [ ProgressBar.xpBar weapon.level
+            ]
           ]
       ]
     inventoryActionButtons =
@@ -222,6 +232,10 @@ viewCrafting address model =
       li [] [Widgets.radio address (toString t) (act t) (cmp == t)]
     weapon =
       toCraft model
+    craftButton =
+      button
+        [ onClick address Craft ]
+        [ text <| "Craft (" ++ Format.currencyList (Weapon.craftCost weapon) ++ ")" ]
   in div []
     [ h3 [] [text "Crafting"]
     , div [inline]
@@ -234,9 +248,8 @@ viewCrafting address model =
       ]
     , div [inlineTop]
       [ text "Result"
-      , viewBaseWeapon (div []) [] weapon
+      , viewBaseWeapon (div []) [craftButton] weapon
       ]
-    , button [onClick address Craft] [text <| "Craft (" ++ Format.currencyList (Weapon.craftCost weapon) ++ ")"]
     ]
 
 equippedWeapon = create .weapon <| \f m -> { m | weapon = f m.weapon }
