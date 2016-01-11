@@ -366,7 +366,7 @@ viewEntity title isPlayer stats entity =
           , div [] [text <| "Health Regen: " ++ Format.float stats.healthRegen ++ "/s"]
           ]
     in div [] (
-      [ div [] [text title]
+      [ div [] [text <| title ++ " (Pow " ++ Format.int (BattleStats.power stats) ++ ")"]
       , ProgressBar.view healthBar
       , ProgressBar.view attackBar
       , div [] [text <| "Health: " ++ healthStr]
@@ -465,7 +465,7 @@ resetPlayerHealth ctx model =
 
 timeToRespawn : Float
 timeToRespawn =
-  4
+  2.5
 
 reward : Context -> Model -> List Currency.Bundle
 reward ctx model =

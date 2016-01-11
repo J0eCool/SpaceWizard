@@ -225,6 +225,7 @@ viewDerivedStats equip model =
     items =
       List.map viewStat
         [ ("Level", f, totalLevel)
+        , ("Power", i, toFloat << power << derived equip)
         , ("Max Health", i, toFloat << maxHealth)
         , ("Attack Damage", i, toFloat << attackDamage equip)
         , ("Attack Speed", f, attackSpeed equip)
@@ -343,3 +344,12 @@ derived equip model =
   , attackSpeed = attackSpeed equip model
   , armor = armor equip model
   }
+
+power : Derived -> Int
+power stats =
+  let
+    hp = toFloat <| stats.maxHealth
+    atk = toFloat <| stats.attackDamage
+    spd = stats.attackSpeed
+  in
+    round <| (hp * atk * spd) ^ (1/3)
