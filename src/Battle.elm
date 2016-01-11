@@ -44,14 +44,15 @@ type Action
   | ToggleAutoSpawn
   | ToggleAutoProgress
 
-type alias Context =
-  { stats : BattleStats.Model
-  , equip : Equipment.Model
+type alias Context r =
+  { r
+  | stats : BattleStats.Model
+  , equipment : Equipment.Model
   }
-type alias Update =
-  Context -> Model -> (Model, List Currency.Bundle)
+type alias Update a =
+  Context a -> Model -> (Model, List Currency.Bundle)
 
-init : Context -> Model
+init : Context a -> Model
 init ctx =
   { player = entityInit
   , enemy = entityInit
@@ -74,7 +75,7 @@ entityInit =
   , attackTimer = 0
   }
 
-update : Action -> Update
+update : Action -> Update a
 update action ctx model =
   let no m = (m, [])
   in case action of
@@ -113,7 +114,7 @@ keyboardAction key =
     KeyChar 's' -> SpawnEnemy
     _ -> NoOp
 
-updateTick : Float -> Update
+updateTick : Float -> Update a
 updateTick dT ctx model =
   let
     (regenModel, _) =
@@ -121,7 +122,7 @@ updateTick dT ctx model =
   in
     updateRespawn dT ctx regenModel
 
-updateRespawn : Float -> Update
+updateRespawn : Float -> Update a
 updateRespawn dT ctx model =
   let
     isDead =
@@ -154,13 +155,13 @@ updateDoRespawn model =
     }
   , [])
 
-updateDoAttacks : Float -> Update
+updateDoAttacks : Float -> Update a
 updateDoAttacks dT ctx model =
   let
     player =
       model.player
     playerStats =
-      BattleStats.derived ctx.equip ctx.stats
+      BattleStats.derived ctx.equipment ctx.stats
     enemy =
       model.enemy
     enemyStats =
@@ -242,13 +243,13 @@ updateAttacker dT attackStats attacker targetStats target =
   in
     (updatedAttacker, updatedTarget, didDie)
 
-updateRegen : Float -> Update
+updateRegen : Float -> Update a
 updateRegen dT ctx model =
   let
     player =
       model.player
     playerStats =
-      BattleStats.derived ctx.equip ctx.stats
+      BattleStats.derived ctx.equipment ctx.stats
     enemy =
       model.enemy
     enemyStats =
@@ -306,7 +307,7 @@ updateEnemyLevel diff model =
       }
       |> updateDoRespawn
 
-view : Signal.Address Action -> Context -> Model -> Html
+view : Signal.Address Action -> Context a -> Model -> Html
 view address ctx model =
   let
     spawnTime =
@@ -322,7 +323,7 @@ view address ctx model =
   in div []
     [ h3 [] [text "Battle"]
     , viewLevel address model
-    , viewEntity "Player" True (BattleStats.derived ctx.equip ctx.stats) model.player
+    , viewEntity "Player" True (BattleStats.derived ctx.equipment ctx.stats) model.player
     , viewEntity "Enemy" False (enemyDerived model) model.enemy
     , div [] [text "Reward: "]
     , viewRewards ctx model
@@ -395,17 +396,17 @@ viewLevel address model =
     ++ incButton
     )
 
-viewRewards : Context -> Model -> Html
+viewRewards : Context a -> Model -> Html
 viewRewards ctx model =
   let
     currency =
       reward ctx model
     damage =
-      attackDamage ctx.equip ctx.stats - enemyArmor model
+      attackDamage ctx.equipment ctx.stats - enemyArmor model
     attacksToKill =
       ceiling <| maxEnemyHealth model ./ damage
     timePerKill =
-      timeToRespawn + toFloat attacksToKill / attackSpeed ctx.equip ctx.stats
+      timeToRespawn + toFloat attacksToKill / attackSpeed ctx.equipment ctx.stats
     perSecond =
       Currency.bundleMap (\cur -> toFloat cur / timePerKill)
     item c =
@@ -452,7 +453,7 @@ resetEnemyHealth model =
       }
   in { model | enemy = updatedEnemy }
 
-resetPlayerHealth : Context -> Model -> Model
+resetPlayerHealth : Context a -> Model -> Model
 resetPlayerHealth ctx model =
   let
     player =
@@ -467,7 +468,7 @@ timeToRespawn : Float
 timeToRespawn =
   2.5
 
-reward : Context -> Model -> List Currency.Bundle
+reward : Context a -> Model -> List Currency.Bundle
 reward ctx model =
   let
     l = model.enemyLevel

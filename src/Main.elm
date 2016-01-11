@@ -72,7 +72,7 @@ init =
     equip = Equipment.init
     battleContext =
       { stats = stats
-      , equip = equip
+      , equipment = equip
       }
   in
     ( { inventory = Inventory.init
@@ -127,7 +127,7 @@ update action model =
     BattleAction bAction ->
       let
         (battle', battleRewards) =
-          Battle.update bAction (battleContext model) model.battle
+          Battle.update bAction model model.battle
       in
         { model
         | battle = battle'
@@ -163,7 +163,7 @@ update action model =
         battle' =
           Battle.update
             (Battle.KeyPress key)
-            (battleContext model)
+            model
             model.battle
             |> fst
       in { model | battle = battle' }
@@ -174,7 +174,7 @@ tabData tab =
     BattleTab ->
       { name = "Battle"
       , view = \address model ->
-          Battle.view (Signal.forwardTo address BattleAction) (battleContext model) model.battle
+          Battle.view (Signal.forwardTo address BattleAction) model model.battle
       }
     EquipmentTab ->
       { name = "Equipment"
@@ -186,12 +186,6 @@ tabData tab =
       , view = \address model ->
           lazy (Buildings.view <| Signal.forwardTo address BuildingAction) model.buildings
       }
-
-battleContext : Model -> Battle.Context
-battleContext model =
-  { stats = model.stats
-  , equip = model.equipment
-  }
 
 tryPurchase : (a -> Model -> Model) -> (a, List Currency.Bundle) -> Model -> Model
 tryPurchase setter (updated, cost) model =
