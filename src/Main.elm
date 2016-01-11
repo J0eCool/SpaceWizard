@@ -25,15 +25,32 @@ type alias Model =
   , stats : BattleStats.Model
   , equipment : Equipment.Model
   , buildings : Buildings.Model
+  , activeMainTab : Tab
   }
 
 type Action
   = Tick Float
+  | ChooseTab Tab
   | BattleAction Battle.Action
   | StatsAction BattleStats.Action
   | EquipAction Equipment.Action
   | BuildingAction Buildings.Action
   | KeyPress Keys.Key
+
+type Tab
+  = BattleTab
+  | EquipmentTab
+  | BuildingsTab
+
+allTabs : List Tab
+allTabs =
+  [ BattleTab
+  , EquipmentTab
+  , BuildingsTab
+  ]
+
+type alias View =
+  Signal.Address Action -> Model -> Html
 
 main : Signal Html
 main =
@@ -63,6 +80,7 @@ init =
       , stats = stats
       , equipment = equip
       , buildings = Buildings.init
+      , activeMainTab = BattleTab
       }
     , Effects.none
     )
@@ -73,18 +91,21 @@ inputs =
   , Keys.pressed |> Signal.map KeyPress
   ]
 
-view : Signal.Address Action -> Model -> Html
+view : View
 view address model =
   let
     fwd =
       Signal.forwardTo address
-  in div []
-    [ Battle.view (fwd BattleAction) (battleContext model) model.battle
+    viewTab tab =
+      button [onClick address <| ChooseTab tab] [text <| .name <| tabData tab]
+    tabs =
+      List.map viewTab allTabs
+  in div [] (
+    tabs ++
+    [ (tabData model.activeMainTab).view address model
     , lazy Inventory.view model.inventory
     , lazy2 (BattleStats.view <| fwd StatsAction) model.equipment model.stats
-    , lazy (Equipment.view <| fwd EquipAction) model.equipment
-    , lazy (Buildings.view <| fwd BuildingAction) model.buildings
-    ]
+    ])
 
 update : Action -> Model -> Model
 update action model =
@@ -101,6 +122,8 @@ update action model =
         actions =
           List.map (\f -> update <| f dT) wrapped
       in List.foldl (\f m -> f m) model actions
+    ChooseTab tab ->
+      { model | activeMainTab = tab }
     BattleAction bAction ->
       let
         (battle', battleRewards) =
@@ -144,6 +167,25 @@ update action model =
             model.battle
             |> fst
       in { model | battle = battle' }
+
+tabData : Tab -> { name : String, view : View }
+tabData tab =
+  case tab of
+    BattleTab ->
+      { name = "Battle"
+      , view = \address model ->
+          Battle.view (Signal.forwardTo address BattleAction) (battleContext model) model.battle
+      }
+    EquipmentTab ->
+      { name = "Equipment"
+      , view = \address model ->
+          lazy (Equipment.view <| Signal.forwardTo address EquipAction) model.equipment
+      }
+    BuildingsTab ->
+      { name = "Buildings"
+      , view = \address model ->
+          lazy (Buildings.view <| Signal.forwardTo address BuildingAction) model.buildings
+      }
 
 battleContext : Model -> Battle.Context
 battleContext model =

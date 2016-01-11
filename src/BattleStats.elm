@@ -352,4 +352,4 @@ power stats =
     atk = toFloat <| stats.attackDamage
     spd = stats.attackSpeed
   in
-    round <| (hp * atk * spd) ^ (1/3)
+    round <| (hp * atk * spd) ^ 0.4
