@@ -26,6 +26,7 @@ type alias Model =
   , equipment : Equipment.Model
   , buildings : Buildings.Model
   , activeMainTab : Tab
+  , fakeValue : Int
   }
 
 type Action
@@ -59,13 +60,13 @@ main =
 app : StartApp.App Model
 app =
   StartApp.start
-    { init = init
+    { init = (load getStorage init, Effects.none)
     , view = view
     , update = \a m -> (update a m, Effects.none)
     , inputs = inputs
     }
 
-init : (Model, Effects.Effects Action)
+init : Model
 init =
   let
     stats = BattleStats.init
@@ -75,15 +76,14 @@ init =
       , equipment = equip
       }
   in
-    ( { inventory = Inventory.init
-      , battle = Battle.init battleContext
-      , stats = stats
-      , equipment = equip
-      , buildings = Buildings.init
-      , activeMainTab = BattleTab
-      }
-    , Effects.none
-    )
+    { inventory = Inventory.init
+    , battle = Battle.init battleContext
+    , stats = stats
+    , equipment = equip
+    , buildings = Buildings.init
+    , activeMainTab = BattleTab
+    , fakeValue = 0
+    }
 
 inputs : List (Signal Action)
 inputs =
@@ -105,6 +105,7 @@ view address model =
     [ (tabData model.activeMainTab).view address model
     , lazy Inventory.view model.inventory
     , lazy2 (BattleStats.view <| fwd StatsAction) model.equipment model.stats
+    , text <| "Fake: " ++ toString model.fakeValue
     ])
 
 update : Action -> Model -> Model
@@ -166,7 +167,24 @@ update action model =
             model
             model.battle
             |> fst
-      in { model | battle = battle' }
+        fv =
+          model.fakeValue +
+            case key of
+              Keys.KeyChar '+' -> 1
+              Keys.KeyChar '-' -> -1
+              _ -> 0
+      in { model | battle = battle', fakeValue = fv }
+
+load storage model =
+  case storage of
+    Nothing ->
+      model
+    Just save ->
+      case String.toInt save of
+        Err _ ->
+          model
+        Ok val ->
+          { model | fakeValue = val }
 
 tabData : Tab -> { name : String, view : View }
 tabData tab =
@@ -197,5 +215,7 @@ tryPurchase setter (updated, cost) model =
     Err _ ->
       model
 
+port getStorage : Maybe String
+
 port setStorage : Signal String
-port setStorage = Signal.sampleOn (Time.every <| 1 * Time.second) (Signal.map toString app.model)
+port setStorage = Signal.sampleOn (Time.every <| 1 * Time.second) (Signal.map (.fakeValue >> toString) app.model)
