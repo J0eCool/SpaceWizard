@@ -196,3 +196,6 @@ tryPurchase setter (updated, cost) model =
       setter updated { model | inventory = updatedInventory }
     Err _ ->
       model
+
+port setStorage : Signal String
+port setStorage = Signal.sampleOn (Time.every <| 1 * Time.second) (Signal.map toString app.model)

@@ -1,0 +1,11 @@
+<html>
+<body>
+    <script type="text/javascript" src="elm.js"></script>
+    <script>
+        var main = Elm.fullscreen(Elm.Main, {});
+        main.ports.setStorage.subscribe(function(toSave) {
+            console.log(toSave);
+        });
+    </script>
+</body>
+</html>
