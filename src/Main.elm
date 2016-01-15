@@ -4,6 +4,8 @@ import Html exposing (Html, span, div, button, text, h3, ul, li)
 import Html.Attributes exposing (class)
 import Html.Events exposing (onClick)
 import Html.Lazy exposing (lazy, lazy2)
+import Json.Decode as Decode exposing ((:=))
+import Json.Encode as Encode exposing (Value)
 import Keyboard
 import Signal
 import StartApp
@@ -175,6 +177,22 @@ update action model =
               _ -> 0
       in { model | battle = battle', fakeValue = fv }
 
+encode : Model -> Value
+encode model =
+  Encode.object
+    [ ("fakeValue", Encode.int model.fakeValue)
+    ]
+
+decodeModel : Int -> Model
+decodeModel val =
+  { init | fakeValue = val }
+
+decoder : Decode.Decoder Model
+decoder =
+  Decode.object1 decodeModel
+    ("fakeValue" := Decode.int)
+
+load : Maybe String -> Model -> Model
 load storage model =
   case storage of
     Nothing ->
@@ -218,4 +236,6 @@ tryPurchase setter (updated, cost) model =
 port getStorage : Maybe String
 
 port setStorage : Signal String
-port setStorage = Signal.sampleOn (Time.every <| 1 * Time.second) (Signal.map (.fakeValue >> toString) app.model)
+port setStorage =
+  Signal.map (.fakeValue >> toString) app.model
+    |> Signal.sampleOn (Time.every <| 1 * Time.second)
