@@ -2,6 +2,8 @@ module Inventory where
 
 import Dict
 import Html exposing (Html, h3, text, div, ul, li, span)
+import Json.Decode as Decode exposing ((:=))
+import Json.Encode as Encode exposing (Value)
 
 import Currency
 import Format
@@ -19,15 +21,15 @@ type alias Bundle =
 
 init : Model
 init =
-  [ (Currency.Gold, initPartial)
-  , (Currency.Experience, initPartial)
+  [ (Currency.Gold, initPartial 0)
+  , (Currency.Experience, initPartial 0)
   ]
     |> List.map Currency.bundleToEnum
     |> Dict.fromList
 
-initPartial : Partial
-initPartial =
-  { value = 0
+initPartial : Int -> Partial
+initPartial value =
+  { value = value
   , part = 0
   }
 
@@ -49,7 +51,7 @@ viewCurrency (t, partial) =
 get : Currency.Type -> Model -> Int
 get t model =
   Dict.get (Currency.toEnum t) model
-    |> Maybe.withDefault initPartial
+    |> Maybe.withDefault (initPartial 0)
     |> .value
 
 update : Currency.Type -> (Maybe Partial -> Maybe Partial) -> Model -> Model
@@ -116,3 +118,15 @@ map f model =
   Dict.toList model
     |> List.map Currency.bundleFromEnum
     |> List.map f
+
+encode : Model -> Value
+encode model =
+  Dict.toList model
+    |> List.map (\(k, v) -> Encode.list [Encode.int k, Encode.int v.value])
+    |> Encode.list
+
+decoder : Decode.Decoder Model
+decoder =
+  Decode.tuple2 (\k v -> (k, initPartial v)) Decode.int Decode.int
+    |> Decode.list
+    |> Decode.map Dict.fromList
