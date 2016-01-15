@@ -4,6 +4,7 @@ import Html exposing (Html, span, div, button, text, h3, ul, li)
 import Html.Attributes exposing (class)
 import Html.Events exposing (onClick)
 import Html.Lazy exposing (lazy, lazy2)
+import Focus
 import Json.Decode as Decode exposing ((:=))
 import Json.Encode as Encode exposing (Value)
 import Keyboard
@@ -19,7 +20,7 @@ import Currency
 import Equipment
 import Format
 import Inventory
-import Keys
+import Keys exposing (..)
 
 type alias Model =
   { inventory : Inventory.Model
@@ -29,6 +30,7 @@ type alias Model =
   , buildings : Buildings.Model
   , activeMainTab : Tab
   , fakeValue : Int
+  , otherFake : Int
   }
 
 type Action
@@ -85,7 +87,11 @@ init =
     , buildings = Buildings.init
     , activeMainTab = BattleTab
     , fakeValue = 0
+    , otherFake = 0
     }
+
+fakeValue = Focus.create .fakeValue <| \f m -> { m | fakeValue = f m.fakeValue }
+otherFake = Focus.create .otherFake <| \f m -> { m | otherFake = f m.otherFake }
 
 inputs : List (Signal Action)
 inputs =
@@ -108,6 +114,7 @@ view address model =
     , lazy Inventory.view model.inventory
     , lazy2 (BattleStats.view <| fwd StatsAction) model.equipment model.stats
     , text <| "Fake: " ++ toString model.fakeValue
+    , text <| "Other Fake: " ++ toString model.otherFake
     ])
 
 update : Action -> Model -> Model
@@ -163,34 +170,37 @@ update action model =
         |> tryPurchase buildingSetter (updatedBuildings, effects.cost)
     KeyPress key ->
       let
-        battle' =
+        updatedBattle =
           Battle.update
             (Battle.KeyPress key)
             model
             model.battle
             |> fst
-        fv =
-          model.fakeValue +
-            case key of
-              Keys.KeyChar '+' -> 1
-              Keys.KeyChar '-' -> -1
-              _ -> 0
-      in { model | battle = battle', fakeValue = fv }
+        model' =
+          case key of
+            KeyChar '+' -> { model | fakeValue = model.fakeValue + 1 }
+            KeyChar '-' -> { model | fakeValue = model.fakeValue - 1 }
+            KeyArrow Left -> { model | otherFake = model.otherFake - 1 }
+            KeyArrow Right -> { model | otherFake = model.otherFake + 1 }
+            _ -> model
+      in { model' | battle = updatedBattle }
 
 encode : Model -> Value
 encode model =
   Encode.object
     [ ("fakeValue", Encode.int model.fakeValue)
+    , ("otherFake", Encode.int model.otherFake)
     ]
 
-decodeModel : Int -> Model
-decodeModel val =
-  { init | fakeValue = val }
+decodeModel : Int -> Int -> Model
+decodeModel val oval =
+  { init | fakeValue = val, otherFake = oval }
 
 decoder : Decode.Decoder Model
 decoder =
-  Decode.object1 decodeModel
+  Decode.object2 decodeModel
     ("fakeValue" := Decode.int)
+    ("otherFake" := Decode.int)
 
 load : Maybe String -> Model -> Model
 load storage model =
@@ -198,11 +208,11 @@ load storage model =
     Nothing ->
       model
     Just save ->
-      case String.toInt save of
+      case Decode.decodeString decoder save of
         Err _ ->
-          model
+          { model | fakeValue = -1334 }
         Ok val ->
-          { model | fakeValue = val }
+          val
 
 tabData : Tab -> { name : String, view : View }
 tabData tab =
@@ -237,5 +247,5 @@ port getStorage : Maybe String
 
 port setStorage : Signal String
 port setStorage =
-  Signal.map (.fakeValue >> toString) app.model
+  Signal.map (Encode.encode 0 << encode) app.model
     |> Signal.sampleOn (Time.every <| 1 * Time.second)
