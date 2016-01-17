@@ -9,6 +9,8 @@ import Cost
 import Currency
 import Equipment
 import Format
+import Json.Decode as Decode exposing ((:=))
+import Json.Encode as Encode exposing (Value)
 import ListUtil exposing (mapSum)
 import Style exposing (..)
 import Widgets.ProgressBar as ProgressBar
@@ -353,3 +355,18 @@ power stats =
     spd = stats.attackSpeed
   in
     round <| (hp * atk * spd) ^ 0.4
+
+encode : Model -> Value
+encode model =
+  allStats model
+    |> List.map (\s -> (s.name, Encode.float s.level))
+    |> Encode.list
+
+decoder : Decode.Decoder Model
+decoder =
+  let
+    readStats model list =
+      model
+  in
+    Decode.keyValuePairs
+      |> Decode.map (readStats init)
