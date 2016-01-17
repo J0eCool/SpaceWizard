@@ -182,16 +182,19 @@ encode : Model -> Value
 encode model =
   Encode.object
     [ ("inventory", Inventory.encode model.inventory)
+    , ("stats", BattleStats.encode model.stats)
     ]
 
 decoder : Decode.Decoder Model
 decoder =
-  let decodeModel inventory =
+  let decodeModel inventory stats =
     { init
     | inventory = inventory
+    , stats = stats
     }
-  in Decode.object1 decodeModel
+  in Decode.object2 decodeModel
     ("inventory" := Inventory.decoder)
+    ("stats" := BattleStats.decoder)
 
 load : Maybe String -> Model -> Model
 load storage model =

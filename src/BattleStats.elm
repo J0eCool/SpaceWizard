@@ -11,7 +11,7 @@ import Equipment
 import Format
 import Json.Decode as Decode exposing ((:=))
 import Json.Encode as Encode exposing (Value)
-import ListUtil exposing (mapSum)
+import ListUtil exposing (findWith, mapSum)
 import Style exposing (..)
 import Widgets.ProgressBar as ProgressBar
 
@@ -53,28 +53,24 @@ type TimedAction
 init : Model
 init =
   { strength =
-    { name = "Strength"
-    , level = 1
-    }
+    { initStat | name = "Strength" }
   , speed =
-    { name = "Speed"
-    , level = 1
-    }
+    { initStat | name = "Speed" }
   , vitality =
-    { name = "Vitality"
-    , level = 1
-    }
+    { initStat | name = "Vitality" }
   , endurance =
-    { name = "Endurance"
-    , level = 1
-    }
+    { initStat | name = "Endurance" }
   , luck =
-    { name = "Luck"
-    , level = 1
-    }
+    { initStat | name = "Luck" }
   , heldAction = Nothing
   , hoveredUpgrade = Nothing
   , upgradeVelocity = 0
+  }
+
+initStat : Stat
+initStat =
+  { name = "INVALID STAT"
+  , level = 1
   }
 
 strength = create .strength <| \f m -> { m | strength = f m.strength }
@@ -82,6 +78,19 @@ speed = create .speed <| \f m -> { m | speed = f m.speed }
 vitality = create .vitality <| \f m -> { m | vitality = f m.vitality }
 endurance = create .endurance <| \f m -> { m | endurance = f m.endurance }
 luck = create .luck <| \f m -> { m | luck = f m.luck }
+invalidStat = create (always initStat) <| \_ m -> m
+
+focusFor statName =
+  let
+    isFocus f =
+      (get f init).name == statName
+    found =
+      findWith isFocus allStatFocuses
+  in case found of
+    Just stat ->
+      stat
+    Nothing ->
+      invalidStat
 
 level = create .level <| \f s -> { s | level = f s.level }
 
@@ -359,14 +368,17 @@ power stats =
 encode : Model -> Value
 encode model =
   allStats model
-    |> List.map (\s -> (s.name, Encode.float s.level))
+    |> List.map (\s -> Encode.list [Encode.string s.name, Encode.float s.level])
     |> Encode.list
 
 decoder : Decode.Decoder Model
 decoder =
   let
+    readStat (statName, value) model =
+      set (focusFor statName => level) value model
     readStats model list =
-      model
+      List.foldl readStat model list
   in
-    Decode.keyValuePairs
+    Decode.tuple2 (,) Decode.string Decode.float
+      |> Decode.list
       |> Decode.map (readStats init)
