@@ -4,14 +4,15 @@ import Color
 import Focus exposing (..)
 import Html exposing (Html, div, h3, text, span, button, ul, li)
 import Html.Events exposing (onMouseDown, onMouseUp, onMouseEnter, onMouseLeave)
+import Json.Decode exposing (Decoder)
+import Json.Encode exposing (Value)
 
 import Cost
 import Currency
 import Equipment
 import Format
-import Json.Decode as Decode exposing ((:=))
-import Json.Encode as Encode exposing (Value)
-import ListUtil exposing (findWith, mapSum)
+import ListUtil exposing (mapSum)
+import Serialize
 import Style exposing (..)
 import Widgets.ProgressBar as ProgressBar
 
@@ -79,18 +80,6 @@ vitality = create .vitality <| \f m -> { m | vitality = f m.vitality }
 endurance = create .endurance <| \f m -> { m | endurance = f m.endurance }
 luck = create .luck <| \f m -> { m | luck = f m.luck }
 invalidStat = create (always initStat) <| \_ m -> m
-
-focusFor statName =
-  let
-    isFocus f =
-      (get f init).name == statName
-    found =
-      findWith isFocus allStatFocuses
-  in case found of
-    Just stat ->
-      stat
-    Nothing ->
-      invalidStat
 
 level = create .level <| \f s -> { s | level = f s.level }
 
@@ -365,20 +354,20 @@ power stats =
   in
     round <| (hp * atk * spd) ^ 0.4
 
+serializer : Serialize.SerializeData Model Float
+serializer =
+  let
+    statData focus =
+      let stat = get focus init
+      in (stat.name, focus => level)
+    data =
+      List.map statData allStatFocuses
+  in { data = data, serializer = Serialize.float }
+
 encode : Model -> Value
 encode model =
-  allStats model
-    |> List.map (\s -> Encode.list [Encode.string s.name, Encode.float s.level])
-    |> Encode.list
+  Serialize.encode serializer model
 
-decoder : Decode.Decoder Model
+decoder : Decoder Model
 decoder =
-  let
-    readStat (statName, value) model =
-      set (focusFor statName => level) value model
-    readStats model list =
-      List.foldl readStat model list
-  in
-    Decode.tuple2 (,) Decode.string Decode.float
-      |> Decode.list
-      |> Decode.map (readStats init)
+  Serialize.decoder serializer init
