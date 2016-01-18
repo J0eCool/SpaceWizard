@@ -354,20 +354,13 @@ power stats =
   in
     round <| (hp * atk * spd) ^ 0.4
 
-serializer : Serialize.SerializeData Model Float
+serializer : Serialize.Serializer Model
 serializer =
   let
     statData focus =
       let stat = get focus init
-      in (stat.name, focus => level)
+      in (stat.name, focus => level, Serialize.float)
     data =
       List.map statData allStatFocuses
-  in { data = data, serializer = Serialize.float }
-
-encode : Model -> Value
-encode model =
-  Serialize.encode serializer model
-
-decoder : Decoder Model
-decoder =
-  Serialize.decoder serializer init
+  in
+    Serialize.list data init

@@ -1,52 +1,64 @@
 module Serialize where
 
 import Focus exposing (..)
-import Json.Decode as Decode exposing ((:=))
-import Json.Encode as Encode exposing (Value)
+import Json.Decode as D exposing ((:=))
+import Json.Encode as E exposing (Value)
 
 import ListUtil exposing (findWith)
 
 type alias Serializer a =
   { encode : a -> Value
-  , decoder : Decode.Decoder a
+  , decoder : D.Decoder a
   }
 
 type alias SerializeData a b =
-  { data : List (String, Focus a b)
-  , serializer : Serializer b
-  }
+  (String, Focus a b, Serializer b)
 
-encode : SerializeData a b -> a -> Value
+encode : Serializer a -> a -> Value
 encode serializer model =
-  serializer.data
-    |> List.map (\(name, focus) ->
-        Encode.list [Encode.string name, serializer.serializer.encode <| get focus model])
-    |> Encode.list
+  serializer.encode model
 
-decoder : SerializeData a b -> a -> Decode.Decoder a
-decoder serializer init =
+decoder : Serializer a -> D.Decoder a
+decoder serializer =
+  serializer.decoder
+
+list : List (SerializeData a b) -> a -> Serializer a
+list data init =
   let
-    saved =
-      serializer.serializer.decoder
-    readItem (name, value) model =
+    encode data model =
+      data
+        |> List.map (\(name, focus, serializer) ->
+            E.object [("key", E.string name), ("value", serializer.encode <| get focus model)])
+        |> E.list
+    decoder data init =
       let
-        found =
-          findWith (\(saved, _) -> name == saved) serializer.data
+        found name =
+          findWith (\(saved, _, _) -> name == saved) data
+        item name =
+          case found name of
+            Nothing ->
+              D.fail <| "Can't find key " ++ name
+            Just (_, _, serializer) ->
+              D.object1 (\v -> (name, v)) ("value" := serializer.decoder)
+        readItem (name, value) model =
+          case found name of
+            Nothing ->
+              model
+            Just (_, focus, _) ->
+              set focus value model
       in
-        case found of
-          Nothing ->
-            model
-          Just (_, focus) ->
-            set focus value model
+        ("key" := D.string) `D.andThen` item
+          |> D.list
+          |> D.map (List.foldl readItem init)
   in
-    Decode.tuple2 (,) Decode.string saved
-      |> Decode.list
-      |> Decode.map (List.foldl readItem init)
+    { encode = encode data
+    , decoder = decoder data init
+    }
 
-serialize : (a -> Value) -> Decode.Decoder a -> Serializer a
-serialize encode decoder =
+pair : (a -> Value) -> D.Decoder a -> Serializer a
+pair encode decoder =
   { encode = encode, decoder = decoder }
 
 float : Serializer Float
 float =
-  serialize Encode.float Decode.float
+  pair E.float D.float

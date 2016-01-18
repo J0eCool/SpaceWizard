@@ -20,6 +20,7 @@ import Equipment
 import Format
 import Inventory
 import Keys
+import Serialize
 
 type alias Model =
   { inventory : Inventory.Model
@@ -182,7 +183,7 @@ encode : Model -> Value
 encode model =
   Encode.object
     [ ("inventory", Inventory.encode model.inventory)
-    , ("stats", BattleStats.encode model.stats)
+    , ("stats", .encode BattleStats.serializer <| model.stats)
     ]
 
 decoder : Decode.Decoder Model
@@ -194,7 +195,7 @@ decoder =
     }
   in Decode.object2 decodeModel
     ("inventory" := Inventory.decoder)
-    ("stats" := BattleStats.decoder)
+    ("stats" := .decoder BattleStats.serializer)
 
 load : Maybe String -> Model -> Model
 load storage model =
