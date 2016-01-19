@@ -1,5 +1,6 @@
 import Char exposing (KeyCode)
 import Effects
+import Focus
 import Html exposing (Html, span, div, button, text, h3, ul, li)
 import Html.Attributes exposing (class)
 import Html.Events exposing (onClick)
@@ -179,36 +180,6 @@ update action model =
             |> fst
       in { model | battle = updatedBattle }
 
-encode : Model -> Value
-encode model =
-  Encode.object
-    [ ("inventory", .encode Inventory.serializer <| model.inventory)
-    , ("stats", .encode BattleStats.serializer <| model.stats)
-    ]
-
-decoder : Decode.Decoder Model
-decoder =
-  let decodeModel inventory stats =
-    { init
-    | inventory = inventory
-    , stats = stats
-    }
-  in Decode.object2 decodeModel
-    ("inventory" := .decoder Inventory.serializer)
-    ("stats" := .decoder BattleStats.serializer)
-
-load : Maybe String -> Model -> Model
-load storage model =
-  case storage of
-    Nothing -> -- no save data
-      model
-    Just save ->
-      case Decode.decodeString decoder save of
-        Err err -> -- save could not be read
-          { model | loadError = Just err }
-        Ok loaded -> -- save was loaded successfully
-          loaded
-
 tabData : Tab -> { name : String, view : View }
 tabData tab =
   case tab of
@@ -238,9 +209,27 @@ tryPurchase setter (updated, cost) model =
     Err _ ->
       model
 
+serializer : Serialize.Serializer Model
+serializer =
+  Serialize.object2 init
+    ("inventory", Focus.create .inventory (\f m -> { m | inventory = f m.inventory }), Inventory.serializer)
+    ("stats", Focus.create .stats (\f m -> { m | stats = f m.stats }), BattleStats.serializer)
+
+load : Maybe String -> Model -> Model
+load storage model =
+  case storage of
+    Nothing -> -- no save data
+      model
+    Just save ->
+      case Decode.decodeString serializer.decoder save of
+        Err err -> -- save could not be read
+          { model | loadError = Just err }
+        Ok loaded -> -- save was loaded successfully
+          loaded
+
 port getStorage : Maybe String
 
 port setStorage : Signal String
 port setStorage =
-  Signal.map (Encode.encode 0 << encode) app.model
+  Signal.map (Encode.encode 0 << serializer.encode) app.model
     |> Signal.sampleOn (Time.every <| 1 * Time.second)

@@ -66,3 +66,18 @@ int =
 float : Serializer Float
 float =
   pair E.float D.float
+
+encodeObject : (SerializeData a b) -> a -> (String, Value)
+encodeObject (name, focus, serializer) model =
+  (name, serializer.encode <| get focus model)
+
+object2 : m -> SerializeData m a -> SerializeData m b -> Serializer m
+object2 init a b =
+  let
+    f (_, focus, _) = focus
+    d (name, _, serializer) = (name := serializer.decoder)
+    e = encodeObject
+  in
+    { encode = \m -> E.object [e a m, e b m]
+    , decoder = D.object2 (\x y -> set (f a) x <| set (f b) y init) (d a) (d b)
+    }
