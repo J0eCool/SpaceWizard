@@ -21,6 +21,7 @@ import Equipment
 import Format
 import Inventory
 import Keys
+import Map
 import Serialize
 
 type alias Model =
@@ -29,6 +30,7 @@ type alias Model =
   , stats : BattleStats.Model
   , equipment : Equipment.Model
   , buildings : Buildings.Model
+  , map : Map.Model
   , activeMainTab : Tab
   , loadError : Maybe String
   }
@@ -40,18 +42,21 @@ type Action
   | StatsAction BattleStats.Action
   | EquipAction Equipment.Action
   | BuildingAction Buildings.Action
+  | MapAction Map.Action
   | KeyPress Keys.Key
 
 type Tab
   = BattleTab
   | EquipmentTab
   | BuildingsTab
+  | MapTab
 
 allTabs : List Tab
 allTabs =
   [ BattleTab
   , EquipmentTab
   , BuildingsTab
+  , MapTab
   ]
 
 type alias View =
@@ -85,6 +90,7 @@ init =
     , stats = stats
     , equipment = equip
     , buildings = Buildings.init
+    , map = Map.init
     , activeMainTab = BattleTab
     , loadError = Nothing
     }
@@ -170,6 +176,8 @@ update action model =
         | inventory = Inventory.applyFloatRewards effects.reward model.inventory
         }
         |> tryPurchase buildingSetter (updatedBuildings, effects.cost)
+    MapAction action ->
+      { model | map = Map.update action model.map }
     KeyPress key ->
       let
         updatedBattle =
@@ -197,6 +205,11 @@ tabData tab =
       { name = "Buildings"
       , view = \address model ->
           lazy (Buildings.view <| Signal.forwardTo address BuildingAction) model.buildings
+      }
+    MapTab ->
+      { name = "Map"
+      , view = \address model ->
+          lazy (Map.view <| Signal.forwardTo address MapAction) model.map
       }
 
 tryPurchase : (a -> Model -> Model) -> (a, List Currency.Bundle) -> Model -> Model

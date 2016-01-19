@@ -1,5 +1,9 @@
 module ListUtil where
 
+index : Int -> List a -> Maybe a
+index n list =
+  List.head <| List.drop n list
+
 intersperseBy : Int -> a -> List a -> List a
 intersperseBy count item list =
   let aux curCount curList =
@@ -80,3 +84,13 @@ mapSum f list =
   list
     |> List.map f
     |> List.sum
+
+updateIndex : Int -> (a -> a) -> List a -> List a
+updateIndex n f list =
+  case (n, list) of
+    (_, []) ->
+      []
+    (0, x :: xs) ->
+      f x :: xs
+    (i, x :: xs) ->
+      x :: updateIndex (i - 1) f xs
