@@ -1,37 +1,24 @@
 module Inventory where
 
 import Dict
+import Focus
 import Html exposing (Html, h3, text, div, ul, li, span)
-import Json.Decode as Decode exposing ((:=))
-import Json.Encode as Encode exposing (Value)
 
 import Currency
 import Format
+import Serialize
 
 type alias Model =
-  Dict.Dict Int Partial -- Dict Type Int
-
-type alias Partial =
-  { value : Int
-  , part : Float
-  }
-
-type alias Bundle =
-  (Currency.Type, Partial)
+  Dict.Dict Int Float -- Dict Type Float
 
 init : Model
 init =
-  [ (Currency.Gold, initPartial 0)
-  , (Currency.Experience, initPartial 0)
+  [ Currency.Gold
+  , Currency.Experience
   ]
+    |> List.map (\t -> (t, 0))
     |> List.map Currency.bundleToEnum
     |> Dict.fromList
-
-initPartial : Int -> Partial
-initPartial value =
-  { value = value
-  , part = 0
-  }
 
 view : Model -> Html
 view model =
@@ -41,49 +28,36 @@ view model =
       in ul [] lines
     ]
 
-viewCurrency : Bundle -> Html
-viewCurrency (t, partial) =
+viewCurrency : Currency.FloatBundle -> Html
+viewCurrency (t, value) =
   li []
     [ span [] [text <| toString t ++ ":"]
-    , span [] [text <| Format.int partial.value]
+    , span [] [text <| Format.int <| floor value]
     ]
 
 get : Currency.Type -> Model -> Int
 get t model =
   Dict.get (Currency.toEnum t) model
-    |> Maybe.withDefault (initPartial 0)
-    |> .value
+    |> Maybe.withDefault 0
+    |> floor
 
-update : Currency.Type -> (Maybe Partial -> Maybe Partial) -> Model -> Model
+update : Currency.Type -> (Maybe Float -> Maybe Float) -> Model -> Model
 update t f model =
   Dict.update (Currency.toEnum t) f model
 
 gain : Currency.Bundle -> Model -> Model
 gain (t, delta) model =
-  let
-    f partial =
-      Just <| case partial of
-        Just p ->
-          { p | value = p.value + delta }
-        Nothing ->
-          { value = delta, part = 0 }
-  in update t f model
+  gainFloat (t, toFloat delta) model
 
 gainFloat : Currency.FloatBundle -> Model -> Model
 gainFloat (t, delta) model =
   let
-    f partial =
-      Just <| case partial of
-        Just p ->
-          let
-            updated =
-              p.part + delta
-            toAdd =
-              floor updated
-          in { value = p.value + toAdd, part = updated - toFloat toAdd }
+    f amount =
+      Just <| case amount of
+        Just a ->
+          a + delta
         Nothing ->
-          let intVal = floor delta
-          in { value = intVal, part = delta - toFloat intVal }
+          delta
   in update t f model
 
 spend : Currency.Bundle -> Model -> Result String Model
@@ -113,20 +87,22 @@ applyFloatRewards : List Currency.FloatBundle -> Model -> Model
 applyFloatRewards rewards model =
   List.foldl gainFloat model rewards
 
-map : (Bundle -> b) -> Model -> List b
+map : (Currency.FloatBundle -> b) -> Model -> List b
 map f model =
   Dict.toList model
     |> List.map Currency.bundleFromEnum
     |> List.map f
 
-encode : Model -> Value
-encode model =
-  Dict.toList model
-    |> List.map (\(k, v) -> Encode.list [Encode.int k, Encode.int v.value])
-    |> Encode.list
+foucsFor : Currency.Type -> Focus.Focus Model Int
+foucsFor t =
+  Focus.create (get t) (\f m -> update t (Maybe.map (toFloat << f << floor)) m)
 
-decoder : Decode.Decoder Model
-decoder =
-  Decode.tuple2 (\k v -> (k, initPartial v)) Decode.int Decode.int
-    |> Decode.list
-    |> Decode.map Dict.fromList
+serializer : Serialize.Serializer Model
+serializer =
+  let
+    toData t =
+      (toString t, foucsFor t, Serialize.int)
+    data =
+      List.map toData Currency.allTypes
+  in
+    Serialize.list data init

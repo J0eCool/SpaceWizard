@@ -182,7 +182,7 @@ update action model =
 encode : Model -> Value
 encode model =
   Encode.object
-    [ ("inventory", Inventory.encode model.inventory)
+    [ ("inventory", .encode Inventory.serializer <| model.inventory)
     , ("stats", .encode BattleStats.serializer <| model.stats)
     ]
 
@@ -194,7 +194,7 @@ decoder =
     , stats = stats
     }
   in Decode.object2 decodeModel
-    ("inventory" := Inventory.decoder)
+    ("inventory" := .decoder Inventory.serializer)
     ("stats" := .decoder BattleStats.serializer)
 
 load : Maybe String -> Model -> Model

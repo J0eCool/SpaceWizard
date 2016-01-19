@@ -59,6 +59,10 @@ pair : (a -> Value) -> D.Decoder a -> Serializer a
 pair encode decoder =
   { encode = encode, decoder = decoder }
 
+int : Serializer Int
+int =
+  pair E.int D.int
+
 float : Serializer Float
 float =
   pair E.float D.float
