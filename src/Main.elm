@@ -80,9 +80,11 @@ init =
   let
     stats = BattleStats.init
     equip = Equipment.init
+    map = Map.init
     battleContext =
       { stats = stats
       , equipment = equip
+      , map = map
       }
   in
     { inventory = Inventory.init
@@ -90,7 +92,7 @@ init =
     , stats = stats
     , equipment = equip
     , buildings = Buildings.init
-    , map = Map.init
+    , map = map
     , activeMainTab = BattleTab
     , loadError = Nothing
     }
@@ -144,12 +146,12 @@ update action model =
       { model | activeMainTab = tab }
     BattleAction bAction ->
       let
-        (battle', battleRewards) =
+        (updatedBattle, output) =
           Battle.update bAction model model.battle
       in
         { model
-        | battle = battle'
-        , inventory = Inventory.applyRewards battleRewards model.inventory
+        | battle = updatedBattle
+        , inventory = Inventory.applyRewards output.rewards model.inventory
         }
     StatsAction sAction ->
       let
@@ -178,6 +180,7 @@ update action model =
         |> tryPurchase buildingSetter (updatedBuildings, effects.cost)
     MapAction action ->
       { model | map = Map.update action model.map }
+      |> update (BattleAction Battle.ChangedMap)
     KeyPress key ->
       let
         updatedBattle =

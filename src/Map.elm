@@ -17,7 +17,8 @@ type alias Area =
   }
 
 type Action
-  = Select Int
+  = NoOp
+  | Select Int
   | Increment
   | Decrement
   | BeatStage
@@ -47,6 +48,8 @@ selected model =
 update : Action -> Model -> Model
 update action model =
   case action of
+    NoOp ->
+      model
     Select id ->
       { model | selectedId = id }
     Increment ->
@@ -81,7 +84,7 @@ view address model =
 
 viewArea : Signal.Address Action -> Int -> Int -> Area -> Html
 viewArea address selectedId idx area =
-  li []
-    [ text <| area.name ++ if selectedId == idx then "*" else ""
-    , button [onClick address (Select idx)] [text "Select"]
+  li [] <|
+    [ text area.name
     ]
+    ++ if selectedId /= idx then [button [onClick address (Select idx)] [text "Select"]] else []

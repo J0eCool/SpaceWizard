@@ -10,6 +10,7 @@ import Currency
 import Equipment
 import Format
 import Keys exposing (Key(..), Arrow(..))
+import Map
 import Operators exposing (..)
 import Widgets
 import Widgets.ProgressBar as ProgressBar
@@ -43,14 +44,21 @@ type Action
   | TogglePause
   | ToggleAutoSpawn
   | ToggleAutoProgress
+  | ChangedMap
 
 type alias Context r =
   { r
   | stats : BattleStats.Model
   , equipment : Equipment.Model
+  , map : Map.Model
+  }
+
+type alias Output =
+  { rewards : List Currency.Bundle
+  , mapAction : Map.Action
   }
 type alias Update a =
-  Context a -> Model -> (Model, List Currency.Bundle)
+  Context a -> Model -> (Model, Output)
 
 init : Context a -> Model
 init ctx =
@@ -75,10 +83,13 @@ entityInit =
   , attackTimer = 0
   }
 
+no : Model -> (Model, Output)
+no model =
+  (model, { rewards = [], mapAction = Map.NoOp })
+
 update : Action -> Update a
 update action ctx model =
-  let no m = (m, [])
-  in case action of
+  case action of
     NoOp ->
       no model
     Tick dT ->
@@ -90,7 +101,7 @@ update action ctx model =
       if not model.enemy.isDead then
         no model
       else
-        updateDoRespawn model
+        no <| updateDoRespawn model
     IncreaseLevel ->
       updateEnemyLevel 1 model
     DecreaseLevel ->
@@ -103,6 +114,8 @@ update action ctx model =
       no { model | autoProgress = not model.autoProgress }
     KeyPress key ->
       update (keyboardAction key) ctx model
+    ChangedMap ->
+      updateEnemyLevel 0 model
 
 keyboardAction : Key -> Action
 keyboardAction key =
@@ -131,11 +144,9 @@ updateRespawn dT ctx model =
       isDead && model.autoSpawn && not model.playerHadDied
     didRespawn =
       isRespawning && model.respawnTimer > timeToRespawn
-    no m =
-      (m, [])
   in
     if didRespawn then
-      updateDoRespawn model
+      no <| updateDoRespawn model
     else if isRespawning then
       no
         { model
@@ -146,14 +157,13 @@ updateRespawn dT ctx model =
     else
       updateDoAttacks dT ctx model
 
-updateDoRespawn : Model -> (Model, List Currency.Bundle)
+updateDoRespawn : Model -> Model
 updateDoRespawn model =
-  ( { model
-    | respawnTimer = 0
-    , enemy = { entityInit | health = maxEnemyHealth model }
-    , playerHadDied = False
-    }
-  , [])
+  { model
+  | respawnTimer = 0
+  , enemy = { entityInit | health = maxEnemyHealth model }
+  , playerHadDied = False
+  }
 
 updateDoAttacks : Float -> Update a
 updateDoAttacks dT ctx model =
@@ -180,22 +190,25 @@ updateDoAttacks dT ctx model =
         , enemyLevel =
             model.enemyLevel + (if model.autoProgress then 1 else 0)
         }
-      , reward ctx model)
+      , { rewards = reward ctx model
+        , mapAction = Map.BeatStage
+        }
+      )
     else if didPlayerDie then
-      ( { model
-        | enemy = { entityInit | isDead = True }
-        , player = { updatedPlayer | isDead = False }
-        , enemyLevel = max 1 <| model.enemyLevel - 1
-        , autoProgress = False
-        , playerHadDied = True
-        }
-      , [])
+      { model
+      | enemy = { entityInit | isDead = True }
+      , player = { updatedPlayer | isDead = False }
+      , enemyLevel = max 1 <| model.enemyLevel - 1
+      , autoProgress = False
+      , playerHadDied = True
+      }
+      |> no
     else
-      ( { model
-        | enemy = updatedEnemy
-        , player = updatedPlayer
-        }
-      , [])
+      { model
+      | enemy = updatedEnemy
+      , player = updatedPlayer
+      }
+      |> no
 
 updateAttacker : Float ->
   BattleStats.Derived -> Entity ->
@@ -278,14 +291,14 @@ updateRegen dT ctx model =
     updatedHadDied =
       model.playerHadDied && player.health < playerStats.maxHealth
   in
-    ( { model
-      | enemy = regen enemyStats enemy
-      , player = regen playerStats player
-      , playerHadDied = updatedHadDied
-      }
-    , [])
+    { model
+    | enemy = regen enemyStats enemy
+    , player = regen playerStats player
+    , playerHadDied = updatedHadDied
+    }
+    |> no
 
-updateEnemyLevel : Int -> Model -> (Model, List Currency.Bundle)
+updateEnemyLevel : Int -> Model -> (Model, Output)
 updateEnemyLevel diff model =
   let
     newLevel =
@@ -298,14 +311,12 @@ updateEnemyLevel diff model =
       | attackTimer = 0
       }
   in
-    if model.enemyLevel == newLevel then
-      (model, [])
-    else
-      { model
-      | enemyLevel = newLevel
-      , player = updatedPlayer
-      }
-      |> updateDoRespawn
+    { model
+    | enemyLevel = newLevel
+    , player = updatedPlayer
+    }
+    |> updateDoRespawn
+    |> no
 
 view : Signal.Address Action -> Context a -> Model -> Html
 view address ctx model =
