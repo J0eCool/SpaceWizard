@@ -18,8 +18,6 @@ import Widgets.ProgressBar as ProgressBar
 type alias Model =
   { player : Entity
   , enemy : Entity
-  , enemyLevel : Int
-  , highestLevelBeaten : Int
   , isPaused : Bool
   , respawnTimer : Float
   , autoSpawn : Bool
@@ -39,12 +37,11 @@ type Action
   | Tick Float
   | KeyPress Keys.Key
   | SpawnEnemy
-  | IncreaseLevel
-  | DecreaseLevel
   | TogglePause
   | ToggleAutoSpawn
   | ToggleAutoProgress
   | ChangedMap
+  | MapAction Map.Action
 
 type alias Context r =
   { r
@@ -55,7 +52,7 @@ type alias Context r =
 
 type alias Output =
   { rewards : List Currency.Bundle
-  , mapAction : Map.Action
+  , mapAction : Maybe Map.Action
   }
 type alias Update a =
   Context a -> Model -> (Model, Output)
@@ -64,15 +61,13 @@ init : Context a -> Model
 init ctx =
   { player = entityInit
   , enemy = entityInit
-  , enemyLevel = 1
-  , highestLevelBeaten = 0
   , isPaused = False
   , respawnTimer = 0
   , autoSpawn = True
   , autoProgress = False
   , playerHadDied = False
   }
-  |> resetEnemyHealth
+  |> resetEnemyHealth ctx
   |> resetPlayerHealth ctx
 
 entityInit : Entity
@@ -85,7 +80,7 @@ entityInit =
 
 no : Model -> (Model, Output)
 no model =
-  (model, { rewards = [], mapAction = Map.NoOp })
+  (model, { rewards = [], mapAction = Nothing })
 
 update : Action -> Update a
 update action ctx model =
@@ -101,11 +96,7 @@ update action ctx model =
       if not model.enemy.isDead then
         no model
       else
-        no <| updateDoRespawn model
-    IncreaseLevel ->
-      updateEnemyLevel 1 model
-    DecreaseLevel ->
-      updateEnemyLevel (-1) model
+        updateDoRespawn ctx model
     TogglePause ->
       no { model | isPaused = not model.isPaused }
     ToggleAutoSpawn ->
@@ -115,13 +106,13 @@ update action ctx model =
     KeyPress key ->
       update (keyboardAction key) ctx model
     ChangedMap ->
-      updateEnemyLevel 0 model
+      updateDoRespawn ctx model
+    MapAction action ->
+      (model, { rewards = [], mapAction = Just action })
 
 keyboardAction : Key -> Action
 keyboardAction key =
   case key of
-    KeyArrow Right -> IncreaseLevel
-    KeyArrow Left -> DecreaseLevel
     KeyChar ' ' -> TogglePause
     KeyChar 'a' -> ToggleAutoProgress
     KeyChar 's' -> SpawnEnemy
@@ -146,7 +137,7 @@ updateRespawn dT ctx model =
       isRespawning && model.respawnTimer > timeToRespawn
   in
     if didRespawn then
-      no <| updateDoRespawn model
+      updateDoRespawn ctx model
     else if isRespawning then
       no
         { model
@@ -157,13 +148,23 @@ updateRespawn dT ctx model =
     else
       updateDoAttacks dT ctx model
 
-updateDoRespawn : Model -> Model
-updateDoRespawn model =
-  { model
-  | respawnTimer = 0
-  , enemy = { entityInit | health = maxEnemyHealth model }
-  , playerHadDied = False
-  }
+updateDoRespawn : Update a
+updateDoRespawn ctx model =
+  let
+    player =
+      model.player
+    updatedPlayer =
+      { player
+      | attackTimer = 0
+      }
+  in
+    { model
+    | respawnTimer = 0
+    , enemy = { entityInit | health = maxEnemyHealth <| enemyLevel ctx }
+    , player = updatedPlayer
+    , playerHadDied = False
+    }
+    |> no
 
 updateDoAttacks : Float -> Update a
 updateDoAttacks dT ctx model =
@@ -174,8 +175,10 @@ updateDoAttacks dT ctx model =
       BattleStats.derived ctx.equipment ctx.stats
     enemy =
       model.enemy
+    level =
+      enemyLevel ctx
     enemyStats =
-      enemyDerived model
+      enemyDerived level
     (tempPlayer, tempEnemy, didEnemyDie) =
       updateAttacker dT playerStats player enemyStats enemy
     (updatedEnemy, updatedPlayer, didPlayerDie) =
@@ -185,24 +188,25 @@ updateDoAttacks dT ctx model =
       ( { model
         | enemy = tempEnemy
         , player = tempPlayer
-        , highestLevelBeaten =
-            max model.highestLevelBeaten model.enemyLevel
-        , enemyLevel =
-            model.enemyLevel + (if model.autoProgress then 1 else 0)
+        -- TODO: re-enable auto-progress by sending multiple actions
+        --, enemyLevel =
+        --    model.enemyLevel + (if model.autoProgress then 1 else 0)
         }
-      , { rewards = reward ctx model
-        , mapAction = Map.BeatStage
+      , { rewards = reward ctx
+        , mapAction = Just Map.BeatStage
         }
       )
     else if didPlayerDie then
-      { model
-      | enemy = { entityInit | isDead = True }
-      , player = { updatedPlayer | isDead = False }
-      , enemyLevel = max 1 <| model.enemyLevel - 1
-      , autoProgress = False
-      , playerHadDied = True
-      }
-      |> no
+      ( { model
+        | enemy = { entityInit | isDead = True }
+        , player = { updatedPlayer | isDead = False }
+        , autoProgress = False
+        , playerHadDied = True
+        }
+      , { rewards = []
+        , mapAction = Just Map.Decrement
+        }
+      )
     else
       { model
       | enemy = updatedEnemy
@@ -266,7 +270,7 @@ updateRegen dT ctx model =
     enemy =
       model.enemy
     enemyStats =
-      enemyDerived model
+      enemyDerived <| enemyLevel ctx
     regen stat ent =
       let
         dPartial =
@@ -298,25 +302,6 @@ updateRegen dT ctx model =
     }
     |> no
 
-updateEnemyLevel : Int -> Model -> (Model, Output)
-updateEnemyLevel diff model =
-  let
-    newLevel =
-      model.enemyLevel + diff
-        |> clamp 1 (model.highestLevelBeaten + 1)
-    player =
-      model.player
-    updatedPlayer =
-      { player
-      | attackTimer = 0
-      }
-  in
-    { model
-    | enemyLevel = newLevel
-    , player = updatedPlayer
-    }
-    |> updateDoRespawn
-    |> no
 
 view : Signal.Address Action -> Context a -> Model -> Html
 view address ctx model =
@@ -333,9 +318,9 @@ view address ctx model =
         ]
   in div []
     [ h3 [] [text "Battle"]
-    , viewLevel address model
+    , viewLevel address ctx
     , viewEntity "Player" True (BattleStats.derived ctx.equipment ctx.stats) model.player
-    , viewEntity "Enemy" False (enemyDerived model) model.enemy
+    , viewEntity "Enemy" False (enemyDerived <| enemyLevel ctx) model.enemy
     , div [] [text "Reward: "]
     , viewRewards ctx model
     , spawnButton
@@ -386,36 +371,44 @@ viewEntity title isPlayer stats entity =
       ++ enemyStats
       )
 
-viewLevel : Signal.Address Action -> Model -> Html
-viewLevel address model =
+viewLevel : Signal.Address Action -> Context a -> Html
+viewLevel address ctx =
   let
     levelButton action label cond =
       if cond then
         [button [onClick address action] [text label]]
       else
         []
+    area =
+      Map.selected ctx.map
     decButton =
-      levelButton DecreaseLevel "-"
-        <| model.enemyLevel > 1
+      levelButton (MapAction Map.Decrement) "-"
+        <| area.stage > 1
     incButton =
-      levelButton IncreaseLevel "+"
-        <| model.enemyLevel <= model.highestLevelBeaten
+      levelButton (MapAction Map.Increment) "+"
+        <| area.stage <= area.highestStageBeaten
   in div []
-    ( [ text <| "Enemy level:"]
-    ++ decButton
-    ++ [text <| Format.int model.enemyLevel]
-    ++ incButton
-    )
+    [ div [] [text area.name]
+    , div []
+      ( [text <| "Enemy level:"]
+      ++ decButton
+      ++ [text <| Format.int <| enemyLevel ctx]
+      ++ incButton
+      )
+    ]
+      
 
 viewRewards : Context a -> Model -> Html
 viewRewards ctx model =
   let
     currency =
-      reward ctx model
+      reward ctx
+    level =
+      enemyLevel ctx
     damage =
-      attackDamage ctx.equipment ctx.stats - enemyArmor model
+      attackDamage ctx.equipment ctx.stats - enemyArmor level
     attacksToKill =
-      ceiling <| maxEnemyHealth model ./ damage
+      ceiling <| maxEnemyHealth level ./ damage
     timePerKill =
       timeToRespawn + toFloat attacksToKill / attackSpeed ctx.equipment ctx.stats
     perSecond =
@@ -429,38 +422,42 @@ viewRewards ctx model =
         ]
   in ul [] <| List.map item currency
 
-maxEnemyHealth : Model -> Int
-maxEnemyHealth model =
-  let l = model.enemyLevel - 1
+maxEnemyHealth : Int -> Int
+maxEnemyHealth level =
+  let l = level - 1
   in 100 + 18 * l + 2 * l ^ 2
 
-enemyAttackDamage : Model -> Int
-enemyAttackDamage model =
-  let l = model.enemyLevel - 1
+enemyAttackDamage : Int -> Int
+enemyAttackDamage level =
+  let l = level - 1
   in 10 + 3 * l + l ^ 2
 
-enemyArmor : Model -> Int
-enemyArmor model =
-  let l = toFloat <| model.enemyLevel - 1
+enemyArmor : Int -> Int
+enemyArmor level =
+  let l = toFloat <| level - 1
   in floor <| l * 4 + 0.5 * l ^ 1.5
 
-enemyDerived : Model -> BattleStats.Derived
-enemyDerived model =
-  { maxHealth = maxEnemyHealth model
+enemyDerived : Int -> BattleStats.Derived
+enemyDerived level =
+  { maxHealth = maxEnemyHealth level
   , healthRegen = 2
-  , attackDamage = enemyAttackDamage model
+  , attackDamage = enemyAttackDamage level
   , attackSpeed = 1
-  , armor = enemyArmor model
+  , armor = enemyArmor level
   }
 
-resetEnemyHealth : Model -> Model
-resetEnemyHealth model =
+enemyLevel : Context a -> Int
+enemyLevel ctx =
+  Map.selected ctx.map |> .stage
+
+resetEnemyHealth : Context a -> Model -> Model
+resetEnemyHealth ctx model =
   let
     enemy =
       model.enemy
     updatedEnemy =
       { enemy
-      | health = maxEnemyHealth model
+      | health = maxEnemyHealth <| enemyLevel ctx
       }
   in { model | enemy = updatedEnemy }
 
@@ -479,10 +476,10 @@ timeToRespawn : Float
 timeToRespawn =
   2.5
 
-reward : Context a -> Model -> List Currency.Bundle
-reward ctx model =
+reward : Context a -> List Currency.Bundle
+reward ctx =
   let
-    l = model.enemyLevel
+    l = enemyLevel ctx
     baseGold = 5 + 2 * l + floor ((toFloat l) ^ 1.5)
     baseExp = 6 + 3 * l + l ^ 2
   in

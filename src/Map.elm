@@ -3,6 +3,7 @@ module Map where
 import Html exposing (Html, div, span, h3, text, ul, li, button)
 import Html.Events exposing (onClick)
 
+import Format
 import ListUtil exposing (index, updateIndex)
 
 type alias Model =
@@ -17,8 +18,7 @@ type alias Area =
   }
 
 type Action
-  = NoOp
-  | Select Int
+  = Select Int
   | Increment
   | Decrement
   | BeatStage
@@ -45,28 +45,32 @@ selected model =
   index model.selectedId model.areas
     |> Maybe.withDefault initArea
 
-update : Action -> Model -> Model
+update : Action -> Model -> (Model, Bool)
 update action model =
   case action of
-    NoOp ->
-      model
     Select id ->
-      { model | selectedId = id }
+      ({ model | selectedId = id }, True)
     Increment ->
-      updateSelected (\area ->
+      ( updateSelected (\area ->
         { area
         | stage = min (area.highestStageBeaten + 1) (area.stage + 1)
         }) model
+      , True
+      )
     Decrement ->
-      updateSelected (\area ->
+      ( updateSelected (\area ->
         { area
         | stage = max 1 (area.stage - 1)
         }) model
+      , True
+      )
     BeatStage ->
-      updateSelected (\area ->
+      ( updateSelected (\area ->
         { area
         | highestStageBeaten = max area.highestStageBeaten area.stage
         }) model
+      , False
+      )
 
 updateSelected : (Area -> Area) -> Model -> Model
 updateSelected f model =
@@ -85,6 +89,6 @@ view address model =
 viewArea : Signal.Address Action -> Int -> Int -> Area -> Html
 viewArea address selectedId idx area =
   li [] <|
-    [ text area.name
+    [ text <| area.name ++ " (" ++ Format.int area.stage ++ ")"
     ]
     ++ if selectedId /= idx then [button [onClick address (Select idx)] [text "Select"]] else []

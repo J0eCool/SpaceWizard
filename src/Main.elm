@@ -148,11 +148,18 @@ update action model =
       let
         (updatedBattle, output) =
           Battle.update bAction model model.battle
+        mapUpdate =
+          case output.mapAction of
+            Just action ->
+              update (MapAction action)
+            Nothing ->
+              identity
       in
         { model
         | battle = updatedBattle
         , inventory = Inventory.applyRewards output.rewards model.inventory
         }
+        |> mapUpdate
     StatsAction sAction ->
       let
         statUpdate =
@@ -179,8 +186,17 @@ update action model =
         }
         |> tryPurchase buildingSetter (updatedBuildings, effects.cost)
     MapAction action ->
-      { model | map = Map.update action model.map }
-      |> update (BattleAction Battle.ChangedMap)
+      let
+        (updatedMap, didChange) =
+          Map.update action model.map
+        battleUpdate =
+          if didChange then
+            update (BattleAction Battle.ChangedMap)
+          else
+            identity
+      in
+        { model | map = updatedMap }
+        |> battleUpdate
     KeyPress key ->
       let
         updatedBattle =
