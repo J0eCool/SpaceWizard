@@ -67,6 +67,16 @@ float : Serializer Float
 float =
   pair E.float D.float
 
+tuple2 : Serializer a -> Serializer b -> Serializer (a, b)
+tuple2 first second =
+  let
+    encode (x, y) =
+      E.list [first.encode x, second.encode y]
+    decoder =
+      D.tuple2 (,) first.decoder second.decoder
+  in
+    pair encode decoder
+
 encodeObject : (SerializeData a b) -> a -> (String, Value)
 encodeObject (name, focus, serializer) model =
   (name, serializer.encode <| get focus model)
@@ -79,5 +89,27 @@ object2 init a b =
     e = encodeObject
   in
     { encode = \m -> E.object [e a m, e b m]
-    , decoder = D.object2 (\x y -> set (f a) x <| set (f b) y init) (d a) (d b)
+    , decoder = D.object2
+        (\x y ->
+          set (f a) x
+            <| set (f b) y
+            <| init)
+        (d a) (d b)
+    }
+
+object3 : m -> SerializeData m a -> SerializeData m b -> SerializeData m c -> Serializer m
+object3 init a b c =
+  let
+    f (_, focus, _) = focus
+    d (name, _, serializer) = (name := serializer.decoder)
+    e = encodeObject
+  in
+    { encode = \m -> E.object [e a m, e b m, e c m]
+    , decoder = D.object3
+        (\x y z ->
+          set (f a) x
+            <| set (f b) y
+            <| set (f c) z
+            <| init)
+        (d a) (d b) (d c)
     }

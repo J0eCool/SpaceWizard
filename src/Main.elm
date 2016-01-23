@@ -243,9 +243,10 @@ tryPurchase setter (updated, cost) model =
 
 serializer : Serialize.Serializer Model
 serializer =
-  Serialize.object2 init
+  Serialize.object3 init
     ("inventory", Focus.create .inventory (\f m -> { m | inventory = f m.inventory }), Inventory.serializer)
     ("stats", Focus.create .stats (\f m -> { m | stats = f m.stats }), BattleStats.serializer)
+    ("map", Focus.create .map (\f m -> {m | map = f m.map }), Map.serializer)
 
 load : Maybe String -> Model -> Model
 load storage model =

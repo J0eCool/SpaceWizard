@@ -4,6 +4,16 @@ index : Int -> List a -> Maybe a
 index n list =
   List.head <| List.drop n list
 
+indexOf : a -> List a -> Maybe Int
+indexOf item list =
+  indexWith (\x -> x == item) list
+
+indexWith : (a -> Bool) -> List a -> Maybe Int
+indexWith f list =
+  List.indexedMap (,) list
+    |> findWith (snd >> f)
+    |> Maybe.map fst
+
 intersperseBy : Int -> a -> List a -> List a
 intersperseBy count item list =
   let aux curCount curList =

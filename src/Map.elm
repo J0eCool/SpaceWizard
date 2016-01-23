@@ -1,10 +1,13 @@
 module Map where
 
+import Focus exposing ((=>))
 import Html exposing (Html, div, span, h3, text, ul, li, button)
 import Html.Events exposing (onClick)
 
 import Format
-import ListUtil exposing (index, updateIndex)
+import ListUtil exposing (index, updateIndex, indexWith)
+import Operators exposing ((?>))
+import Serialize
 
 type alias Model =
   { areas : List Area
@@ -92,3 +95,34 @@ viewArea address selectedId idx area =
     [ text <| area.name ++ " (" ++ Format.int area.stage ++ ")"
     ]
     ++ if selectedId /= idx then [button [onClick address (Select idx)] [text "Select"]] else []
+
+serializer : Serialize.Serializer Model
+serializer =
+  let
+    focusFor area =
+      let
+        idx =
+          indexWith (\a -> a.name == area.name) init.areas
+        toTuple a =
+          (a.stage, a.highestStageBeaten)
+        fromTuple (s, high) =
+          { area | stage = s, highestStageBeaten = high }
+        getter model =
+          idx ?> (\i -> index i model.areas)
+            |> Maybe.withDefault initArea
+            |> toTuple
+        updater f model =
+          case idx of
+            Just i ->
+              let areas = updateIndex i (toTuple >> f >> fromTuple) model.areas
+              in { model | areas = areas }
+            Nothing ->
+              model
+      in
+        Focus.create getter updater
+    areaData area =
+      (area.name, focusFor area, Serialize.tuple2 Serialize.int Serialize.int)
+    data =
+      List.map areaData init.areas
+  in
+    Serialize.list data init
