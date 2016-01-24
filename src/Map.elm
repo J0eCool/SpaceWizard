@@ -162,6 +162,20 @@ viewArea address selectedId idx area =
     ]
     ++ if selectedId /= idx then [button [onClick address (Select idx)] [text "Select"]] else []
 
+areaSerializer : Area -> Serialize.Serializer Area
+areaSerializer area =
+  let
+    stage =
+      Focus.create .stage (\f a -> { a | stage = f a.stage })
+    highest =
+      Focus.create .highestStageBeaten (\f a -> { a | highestStageBeaten = f a.highestStageBeaten })
+    data =
+      [ ("stage", stage, Serialize.int)
+      , ("highest", highest, Serialize.int)
+      ]
+  in
+    Serialize.list data area
+
 serializer : Serialize.Serializer Model
 serializer =
   let
@@ -169,25 +183,20 @@ serializer =
       let
         idx =
           indexWith (\a -> a.name == area.name) init.areas
-        toTuple a =
-          (a.stage, a.highestStageBeaten)
-        fromTuple (s, high) =
-          { area | stage = s, highestStageBeaten = high }
         getter model =
           idx ?> (\i -> index i model.areas)
             |> Maybe.withDefault initArea
-            |> toTuple
         updater f model =
           case idx of
             Just i ->
-              let areas = updateIndex i (toTuple >> f >> fromTuple) model.areas
+              let areas = updateIndex i f model.areas
               in { model | areas = areas }
             Nothing ->
               model
       in
         Focus.create getter updater
     areaData area =
-      (area.name, focusFor area, Serialize.tuple2 Serialize.int Serialize.int)
+      (area.name, focusFor area, areaSerializer area)
     data =
       List.map areaData init.areas
   in
