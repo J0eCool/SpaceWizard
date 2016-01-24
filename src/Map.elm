@@ -169,12 +169,10 @@ areaSerializer area =
       Focus.create .stage (\f a -> { a | stage = f a.stage })
     highest =
       Focus.create .highestStageBeaten (\f a -> { a | highestStageBeaten = f a.highestStageBeaten })
-    data =
-      [ ("stage", stage, Serialize.int)
-      , ("highest", highest, Serialize.int)
-      ]
   in
-    Serialize.list data area
+    Serialize.object2 area
+      ("stage", stage, Serialize.int)
+      ("highest", highest, Serialize.int)
 
 serializer : Serialize.Serializer Model
 serializer =

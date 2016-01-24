@@ -8,6 +8,7 @@ import Cost
 import Currency
 import Format
 import ListUtil exposing (contains, remove, replace, mapSum)
+import Serialize
 import Style exposing (..)
 import Weapon
 import Widgets
@@ -281,3 +282,9 @@ totalCost model =
     ( Currency.Gold
     , totalCost
     )
+
+serializer : Serialize.Serializer Model
+serializer =
+  Serialize.object1 init
+    ("weapon", equippedWeapon, Weapon.serializer weaponInit)
+

@@ -1,7 +1,10 @@
 module Weapon where
 
+import Focus
+
 import Cost
 import Currency
+import Serialize
 
 type alias Model =
   { kind : Kind
@@ -65,6 +68,10 @@ typeToKind t =
     Axe ->
       base 26 1
 
+allKinds : List Kind
+allKinds =
+  List.map typeToKind allTypes
+
 currencyToMaterial : Currency.Type -> MaterialKind
 currencyToMaterial currency =
   let
@@ -90,6 +97,10 @@ currencyToMaterial currency =
 allMaterials : List Currency.Type
 allMaterials =
   List.filter (\c -> (currencyToMaterial c).name /= "INVALID") Currency.allTypes
+
+allMaterialKinds : List MaterialKind
+allMaterialKinds =
+  List.map currencyToMaterial allMaterials
 
 name : Model -> String
 name weapon =
@@ -126,3 +137,23 @@ craftCost weapon =
 cost : Model -> Int
 cost wep =
   round <| Cost.base (2, 1, 2) 1.10 wep.level * wep.material.goldCost / 15
+
+serializer : Model -> Serialize.Serializer Model
+serializer weapon =
+  Serialize.object4 weapon
+    ( "level"
+      , Focus.create .level (\f w -> { w | level = f w.level })
+      , Serialize.float
+      )
+    ( "id"
+      , Focus.create .id (\f w -> { w | id = f w.id })
+      , Serialize.int
+      )
+    ( "kind"
+      , Focus.create .kind (\f w -> { w | kind = f w.kind })
+      , Serialize.namedStringList allKinds
+      )
+    ( "material"
+      , Focus.create .material (\f w -> { w | material = f w.material })
+      , Serialize.namedStringList allMaterialKinds
+      )

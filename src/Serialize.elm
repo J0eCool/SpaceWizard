@@ -81,35 +81,101 @@ encodeObject : (SerializeData a b) -> a -> (String, Value)
 encodeObject (name, focus, serializer) model =
   (name, serializer.encode <| get focus model)
 
+object1 : m -> SerializeData m a -> Serializer m
+object1 init a =
+  let
+    fo (_, focus, _) = focus
+    de (name, _, serializer) = (name := serializer.decoder)
+    en = encodeObject
+  in
+    { encode = \m -> E.object [en a m]
+    , decoder = D.object1
+        (\x ->
+          set (fo a) x
+            <| init)
+        (de a)
+    }
+
 object2 : m -> SerializeData m a -> SerializeData m b -> Serializer m
 object2 init a b =
   let
-    f (_, focus, _) = focus
-    d (name, _, serializer) = (name := serializer.decoder)
-    e = encodeObject
+    fo (_, focus, _) = focus
+    de (name, _, serializer) = (name := serializer.decoder)
+    en = encodeObject
   in
-    { encode = \m -> E.object [e a m, e b m]
+    { encode = \m -> E.object [en a m, en b m]
     , decoder = D.object2
         (\x y ->
-          set (f a) x
-            <| set (f b) y
+          set (fo a) x
+            <| set (fo b) y
             <| init)
-        (d a) (d b)
+        (de a) (de b)
     }
 
 object3 : m -> SerializeData m a -> SerializeData m b -> SerializeData m c -> Serializer m
 object3 init a b c =
   let
-    f (_, focus, _) = focus
-    d (name, _, serializer) = (name := serializer.decoder)
-    e = encodeObject
+    fo (_, focus, _) = focus
+    de (name, _, serializer) = (name := serializer.decoder)
+    en = encodeObject
   in
-    { encode = \m -> E.object [e a m, e b m, e c m]
+    { encode = \m -> E.object [en a m, en b m, en c m]
     , decoder = D.object3
         (\x y z ->
-          set (f a) x
-            <| set (f b) y
-            <| set (f c) z
+          set (fo a) x
+            <| set (fo b) y
+            <| set (fo c) z
             <| init)
-        (d a) (d b) (d c)
+        (de a) (de b) (de c)
     }
+
+object4 : m -> SerializeData m a -> SerializeData m b -> SerializeData m c ->
+  SerializeData m d -> Serializer m
+object4 init a b c d =
+  let
+    fo (_, focus, _) = focus
+    de (name, _, serializer) = (name := serializer.decoder)
+    en = encodeObject
+  in
+    { encode = \m -> E.object [en a m, en b m, en c m, en d m]
+    , decoder = D.object4
+        (\x y z i ->
+          set (fo a) x
+            <| set (fo b) y
+            <| set (fo c) z
+            <| set (fo d) i
+            <| init)
+        (de a) (de b) (de c) (de d)
+    }
+
+stringList : List a -> Serializer a
+stringList list =
+  let
+    encode item =
+      E.string <| toString item
+    decoder =
+      D.string `D.andThen` (\name ->
+        case findWith (\t -> name == toString t) list of
+          Just t ->
+            D.succeed t
+          Nothing ->
+            D.fail <| "Unexpected type " ++ name
+      )
+  in
+    pair encode decoder
+
+namedStringList : List { a | name : String } -> Serializer { a | name : String }
+namedStringList list =
+  let
+    encode item =
+      E.string item.name
+    decoder =
+      D.string `D.andThen` (\name ->
+        case findWith (\item -> name == item.name) list of
+          Just item ->
+            D.succeed item
+          Nothing ->
+            D.fail <| "Unexpected type " ++ name
+      )
+  in
+    pair encode decoder
