@@ -4,6 +4,7 @@ import Focus exposing ((=>))
 import Html exposing (Html, div, span, h3, text, ul, li, button)
 import Html.Events exposing (onClick)
 
+import BattleStats
 import Format
 import ListUtil exposing (index, updateIndex, indexWith)
 import Operators exposing ((?>))
@@ -18,6 +19,14 @@ type alias Area =
   { name : String
   , stage : Int
   , highestStageBeaten : Int
+  , enemy : EnemyType
+  }
+
+type alias EnemyType =
+  { name : String
+  , health : Float
+  , attack : Float
+  , speed : Float
   }
 
 type Action
@@ -29,8 +38,24 @@ type Action
 init : Model
 init =
   { areas =
-      [ { initArea | name = "Plains" }
-      , { initArea | name = "Forest" }
+      [ { initArea
+        | name = "Plains"
+        , enemy =
+            { name = "Imp"
+            , health = 0.7
+            , attack = 0.8
+            , speed = 0.8
+            }
+        }
+      , { initArea
+        | name = "Forest"
+        , enemy =
+            { name = "Snake"
+            , health = 0.6
+            , attack = 0.8
+            , speed = 1
+            }
+        }
       ]
   , selectedId =
       0
@@ -41,12 +66,53 @@ initArea =
   { name = "INVALID AREA"
   , stage = 1
   , highestStageBeaten = 0
+  , enemy = initEnemy
+  }
+
+initEnemy : EnemyType
+initEnemy =
+  { name = "INVALID ENEMY"
+  , health = 1
+  , attack = 1
+  , speed = 1
   }
 
 selected : Model -> Area
 selected model =
   index model.selectedId model.areas
     |> Maybe.withDefault initArea
+
+enemyType : Model -> EnemyType
+enemyType model =
+  (selected model).enemy
+
+enemyLevel : Model -> Int
+enemyLevel model =
+  let area = selected model
+  in area.stage
+
+enemyDerived : Model -> BattleStats.Derived
+enemyDerived map =
+  let
+    area =
+      selected map
+    enemy =
+      area.enemy
+    l =
+      toFloat <| area.stage - 1
+  in
+    { name = enemy.name
+    , maxHealth =
+        floor <| (100 + 18 * l + 2 * l ^ 2) * enemy.health
+    , attackDamage =
+        floor <| (10 + 3 * l + l ^ 2) * enemy.attack
+    , armor =
+        floor <| (l * 4 + 0.5 * l ^ 1.5)
+    , healthRegen =
+        2
+    , attackSpeed =
+        enemy.speed
+    }
 
 update : Action -> Model -> (Model, Bool)
 update action model =

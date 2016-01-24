@@ -160,10 +160,10 @@ updateDoRespawn ctx model =
   in
     { model
     | respawnTimer = 0
-    , enemy = { entityInit | health = maxEnemyHealth <| enemyLevel ctx }
     , player = updatedPlayer
     , playerHadDied = False
     }
+    |> resetEnemyHealth ctx
     |> no
 
 updateDoAttacks : Float -> Update a
@@ -175,10 +175,8 @@ updateDoAttacks dT ctx model =
       BattleStats.derived ctx.equipment ctx.stats
     enemy =
       model.enemy
-    level =
-      enemyLevel ctx
     enemyStats =
-      enemyDerived level
+      Map.enemyDerived ctx.map
     (tempPlayer, tempEnemy, didEnemyDie) =
       updateAttacker dT playerStats player enemyStats enemy
     (updatedEnemy, updatedPlayer, didPlayerDie) =
@@ -270,7 +268,7 @@ updateRegen dT ctx model =
     enemy =
       model.enemy
     enemyStats =
-      enemyDerived <| enemyLevel ctx
+      Map.enemyDerived ctx.map
     regen stat ent =
       let
         dPartial =
@@ -319,8 +317,8 @@ view address ctx model =
   in div []
     [ h3 [] [text "Battle"]
     , viewLevel address ctx
-    , viewEntity "Player" True (BattleStats.derived ctx.equipment ctx.stats) model.player
-    , viewEntity "Enemy" False (enemyDerived <| enemyLevel ctx) model.enemy
+    , viewEntity True (BattleStats.derived ctx.equipment ctx.stats) model.player
+    , viewEntity False (Map.enemyDerived ctx.map) model.enemy
     , div [] [text "Reward: "]
     , viewRewards ctx model
     , spawnButton
@@ -331,8 +329,8 @@ view address ctx model =
         ]
     ]
 
-viewEntity : String -> Bool -> BattleStats.Derived -> Entity -> Html
-viewEntity title isPlayer stats entity =
+viewEntity : Bool -> BattleStats.Derived -> Entity -> Html
+viewEntity isPlayer stats entity =
     let
       healthBar =
         { width = 300
@@ -363,7 +361,7 @@ viewEntity title isPlayer stats entity =
           , div [] [text <| "Health Regen: " ++ Format.float stats.healthRegen ++ "/s"]
           ]
     in div [] (
-      [ div [] [text <| title ++ " (Pow " ++ Format.int (BattleStats.power stats) ++ ")"]
+      [ div [] [text <| stats.name ++ " (Pow " ++ Format.int (BattleStats.power stats) ++ ")"]
       , ProgressBar.view healthBar
       , ProgressBar.view attackBar
       , div [] [text <| "Health: " ++ healthStr]
@@ -390,25 +388,24 @@ viewLevel address ctx =
   in div []
     [ div [] [text area.name]
     , div []
-      ( [text <| "Enemy level:"]
+      ( [text <| "Stage:"]
       ++ decButton
-      ++ [text <| Format.int <| enemyLevel ctx]
+      ++ [text <| Format.int <| .stage <| Map.selected ctx.map]
       ++ incButton
       )
     ]
-      
 
 viewRewards : Context a -> Model -> Html
 viewRewards ctx model =
   let
     currency =
       reward ctx
-    level =
-      enemyLevel ctx
+    enemyStats =
+      Map.enemyDerived ctx.map
     damage =
-      attackDamage ctx.equipment ctx.stats - enemyArmor level
+      attackDamage ctx.equipment ctx.stats - enemyStats.armor
     attacksToKill =
-      ceiling <| maxEnemyHealth level ./ damage
+      ceiling <| enemyStats.maxHealth ./ damage
     timePerKill =
       timeToRespawn + toFloat attacksToKill / attackSpeed ctx.equipment ctx.stats
     perSecond =
@@ -422,42 +419,17 @@ viewRewards ctx model =
         ]
   in ul [] <| List.map item currency
 
-maxEnemyHealth : Int -> Int
-maxEnemyHealth level =
-  let l = level - 1
-  in 100 + 18 * l + 2 * l ^ 2
-
-enemyAttackDamage : Int -> Int
-enemyAttackDamage level =
-  let l = level - 1
-  in 10 + 3 * l + l ^ 2
-
-enemyArmor : Int -> Int
-enemyArmor level =
-  let l = toFloat <| level - 1
-  in floor <| l * 4 + 0.5 * l ^ 1.5
-
-enemyDerived : Int -> BattleStats.Derived
-enemyDerived level =
-  { maxHealth = maxEnemyHealth level
-  , healthRegen = 2
-  , attackDamage = enemyAttackDamage level
-  , attackSpeed = 1
-  , armor = enemyArmor level
-  }
-
-enemyLevel : Context a -> Int
-enemyLevel ctx =
-  Map.selected ctx.map |> .stage
-
 resetEnemyHealth : Context a -> Model -> Model
 resetEnemyHealth ctx model =
   let
     enemy =
       model.enemy
+    enemyStats =
+      Map.enemyDerived ctx.map
     updatedEnemy =
       { enemy
-      | health = maxEnemyHealth <| enemyLevel ctx
+      | health = enemyStats.maxHealth
+      , isDead = False
       }
   in { model | enemy = updatedEnemy }
 
@@ -479,7 +451,7 @@ timeToRespawn =
 reward : Context a -> List Currency.Bundle
 reward ctx =
   let
-    l = enemyLevel ctx
+    l = Map.enemyLevel ctx.map
     baseGold = 5 + 2 * l + floor ((toFloat l) ^ 1.5)
     baseExp = 6 + 3 * l + l ^ 2
   in
