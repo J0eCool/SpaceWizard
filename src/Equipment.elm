@@ -27,7 +27,7 @@ type alias Model =
 
 init : Model
 init =
-  { weapon = weaponInit
+  { weapon = Weapon.init
   , armor = 1
   , inventory = []
   , selectedWeaponType = Weapon.Sword
@@ -36,10 +36,6 @@ init =
   , heldAction = Nothing
   , upgradeVelocity = 0
   }
-
-weaponInit : Weapon.Model
-weaponInit =
-  Weapon.init Weapon.Sword Currency.Iron 1 0
 
 type Action
   = NoOp
@@ -136,7 +132,7 @@ updateTick dT action model =
 
 toCraft : Model -> Weapon.Model
 toCraft model =
-  Weapon.init model.selectedWeaponType model.selectedWeaponMaterial 1 model.nextId
+  Weapon.initWith model.selectedWeaponType model.selectedWeaponMaterial 1 model.nextId
 
 inline = style [display InlineBlock]
 inlineTop = style [display InlineBlock, verticalAlign Top]
@@ -262,6 +258,7 @@ focusFor weapon model =
     equippedWeapon
   else
     inventoryWeapon weapon
+inventory = create .inventory (\f m -> { m | inventory = f m.inventory })
 
 level = create .level <| \f w -> { w | level = f w.level}
 
@@ -285,6 +282,7 @@ totalCost model =
 
 serializer : Serialize.Serializer Model
 serializer =
-  Serialize.object1 init
-    ("weapon", equippedWeapon, Weapon.serializer weaponInit)
+  Serialize.object2 init
+    ("weapon", equippedWeapon, Weapon.serializer)
+    ("inventory", inventory, Serialize.list Weapon.serializer)
 

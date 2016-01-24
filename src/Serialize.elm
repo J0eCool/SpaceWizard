@@ -22,8 +22,8 @@ decoder : Serializer a -> D.Decoder a
 decoder serializer =
   serializer.decoder
 
-list : List (SerializeData a b) -> a -> Serializer a
-list data init =
+foldList : List (SerializeData a b) -> a -> Serializer a
+foldList data init =
   let
     encode data model =
       data
@@ -66,6 +66,16 @@ int =
 float : Serializer Float
 float =
   pair E.float D.float
+
+list : Serializer a -> Serializer (List a)
+list serializer =
+  let
+    encode list =
+      E.list <| List.map serializer.encode list
+    decoder =
+      D.list serializer.decoder
+  in
+    pair encode decoder
 
 tuple2 : Serializer a -> Serializer b -> Serializer (a, b)
 tuple2 first second =

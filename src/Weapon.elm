@@ -40,8 +40,12 @@ type alias MaterialKind =
   , goldCost : Float
   }
 
-init : Type -> Currency.Type -> Float -> Int -> Model
-init t mat level id =
+init : Model
+init =
+  initWith Sword Currency.Iron 1 0
+
+initWith : Type -> Currency.Type -> Float -> Int -> Model
+initWith t mat level id =
   let
     kind = typeToKind t
     matKind = currencyToMaterial mat
@@ -138,9 +142,9 @@ cost : Model -> Int
 cost wep =
   round <| Cost.base (2, 1, 2) 1.10 wep.level * wep.material.goldCost / 15
 
-serializer : Model -> Serialize.Serializer Model
-serializer weapon =
-  Serialize.object4 weapon
+serializer : Serialize.Serializer Model
+serializer =
+  Serialize.object4 init
     ( "level"
       , Focus.create .level (\f w -> { w | level = f w.level })
       , Serialize.float

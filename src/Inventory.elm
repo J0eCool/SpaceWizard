@@ -105,4 +105,4 @@ serializer =
     data =
       List.map toData Currency.allTypes
   in
-    Serialize.list data init
+    Serialize.foldList data init

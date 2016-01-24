@@ -198,4 +198,4 @@ serializer =
     data =
       List.map areaData init.areas
   in
-    Serialize.list data init
+    Serialize.foldList data init

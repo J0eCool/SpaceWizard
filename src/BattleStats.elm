@@ -365,4 +365,4 @@ serializer =
     data =
       List.map statData allStatFocuses
   in
-    Serialize.list data init
+    Serialize.foldList data init
