@@ -363,14 +363,19 @@ viewEntity isPlayer stats entity =
           ]
       image =
         img
-          [ style
+          [ style (
             [ display InlineBlock
             , width (Px 100)
             , height (Px 100)
             , verticalAlign Top
             , pixelated
-            ]
-          , src "img/Snake.png"
+            ] ++
+              if isPlayer then
+                []
+              else
+                [flipHorizontal]
+            )
+          , src stats.image
           ]
           []
       (left, right) =

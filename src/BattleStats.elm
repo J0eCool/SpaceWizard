@@ -29,6 +29,7 @@ type alias Model =
 
 type alias Derived =
   { name : String
+  , image : String
   , maxHealth : Int
   , healthRegen : Float
   , attackDamage : Int
@@ -340,6 +341,7 @@ goldBonusMultiplier model =
 derived : Equipment.Model -> Model -> Derived
 derived equip model =
   { name = "Player"
+  , image = "img/Player.png"
   , maxHealth = maxHealth model
   , healthRegen = healthRegen model
   , attackDamage = attackDamage equip model

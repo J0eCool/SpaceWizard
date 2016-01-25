@@ -166,3 +166,7 @@ backgroundImage url =
 pixelated : Style
 pixelated =
   ("image-rendering", "pixelated")
+
+flipHorizontal : Style
+flipHorizontal =
+  ("transform", "scaleX(-1)")

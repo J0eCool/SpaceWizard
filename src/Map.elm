@@ -23,6 +23,7 @@ type alias Area =
 
 type alias EnemyType =
   { name : String
+  , image : String
   , health : Float
   , attack : Float
   , speed : Float
@@ -40,7 +41,8 @@ init =
       [ { initArea
         | name = "Plains"
         , enemy =
-            { name = "Imp"
+            { name = "Goblin"
+            , image = "img/Goblin.png"
             , health = 0.7
             , attack = 0.8
             , speed = 0.8
@@ -50,6 +52,7 @@ init =
         | name = "Forest"
         , enemy =
             { name = "Snake"
+            , image = "img/Snake.png"
             , health = 0.6
             , attack = 0.8
             , speed = 1
@@ -71,6 +74,7 @@ initArea =
 initEnemy : EnemyType
 initEnemy =
   { name = "INVALID ENEMY"
+  , image = ""
   , health = 1
   , attack = 1
   , speed = 1
@@ -101,6 +105,7 @@ enemyDerived map =
       toFloat <| area.stage - 1
   in
     { name = enemy.name
+    , image = enemy.image
     , maxHealth =
         floor <| (100 + 18 * l + 2 * l ^ 2) * enemy.health
     , attackDamage =
