@@ -1,8 +1,8 @@
 module Battle where
 
 import Color
-import Html exposing (Html, div, span, h3, text, ul, li, button)
-import Html.Attributes exposing (disabled)
+import Html exposing (Html, div, span, h3, text, ul, li, button, img)
+import Html.Attributes exposing (disabled, src)
 import Html.Events exposing (onClick)
 
 import BattleStats exposing (attackDamage, attackSpeed, goldBonusMultiplier)
@@ -12,6 +12,7 @@ import Format
 import Keys exposing (Key(..), Arrow(..))
 import Map
 import Operators exposing (..)
+import Style exposing (..)
 import Widgets
 import Widgets.ProgressBar as ProgressBar
 
@@ -360,13 +361,35 @@ viewEntity isPlayer stats entity =
           , div [] [text <| "Armor: " ++ Format.int stats.armor]
           , div [] [text <| "Health Regen: " ++ Format.float stats.healthRegen ++ "/s"]
           ]
+      image =
+        img
+          [ style
+            [ display InlineBlock
+            , width (Px 100)
+            , height (Px 100)
+            , verticalAlign Top
+            , pixelated
+            ]
+          , src "img/Snake.png"
+          ]
+          []
+      (left, right) =
+        if isPlayer then
+          ([image], [])
+        else
+          ([], [image])
     in div [] (
-      [ div [] [text <| stats.name ++ " (Pow " ++ Format.int (BattleStats.power stats) ++ ")"]
-      , ProgressBar.view healthBar
-      , ProgressBar.view attackBar
-      , div [] [text <| "Health: " ++ healthStr]
+      left
+      ++ [ div [style [display InlineBlock]] (
+        [ div [] [text <| stats.name ++ " (Pow " ++ Format.int (BattleStats.power stats) ++ ")"]
+        , ProgressBar.view healthBar
+        , ProgressBar.view attackBar
+        , div [] [text <| "Health: " ++ healthStr]
+        ]
+        ++ enemyStats
+        )
       ]
-      ++ enemyStats
+      ++ right
       )
 
 viewLevel : Signal.Address Action -> Context a -> Html

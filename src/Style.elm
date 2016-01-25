@@ -2,9 +2,9 @@ module Style where
 
 import Char exposing (toCode, fromCode)
 import Color exposing (Color, toRgb)
+import Html
 import Html.Attributes as Attr
 import String
-import Vendor
 
 type alias Style =
   (String, String)
@@ -13,7 +13,7 @@ baseStyle : String -> (a -> String) -> a -> Style
 baseStyle str f x =
   (str, f x)
 
---style : List Style -> VirtualDom.Property
+style : List Style -> Html.Attribute
 style =
   Attr.style
 
@@ -156,3 +156,13 @@ fontStyleStr style =
 fontStyle : FontStyle -> Style
 fontStyle =
   baseStyle "font-style" fontStyleStr
+
+-----------------------------------
+
+backgroundImage : String -> Style
+backgroundImage url =
+  ("background-image", "url('" ++ url ++ "')")
+
+pixelated : Style
+pixelated =
+  ("image-rendering", "pixelated")
