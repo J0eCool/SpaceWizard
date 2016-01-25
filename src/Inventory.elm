@@ -95,7 +95,18 @@ map f model =
 
 foucsFor : Currency.Type -> Focus.Focus Model Int
 foucsFor t =
-  Focus.create (get t) (\f m -> update t (Maybe.map (toFloat << f << floor)) m)
+  let
+    default f val =
+      val
+        |> Maybe.withDefault 0
+        |> floor
+        |> f
+        |> toFloat
+        |> \i -> if i > 0 then Just i else Nothing
+    updater f m =
+      update t (default f) m
+  in
+    Focus.create (get t) updater
 
 serializer : Serialize.Serializer Model
 serializer =
