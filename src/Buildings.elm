@@ -1,10 +1,12 @@
 module Buildings where
 
+import Focus
 import Html exposing (Html, div, span, h3, text, ul, li, button)
 import Html.Events exposing (onClick)
 
 import Currency
 import Format
+import Serialize
 
 type alias Model =
   { buildings : List Building
@@ -101,3 +103,20 @@ purchaseCost : Building -> Currency.Bundle
 purchaseCost building =
   let (t, base) = building.baseCost
   in (t, floor <| toFloat base * 1.067 ^ (toFloat building.count ^ 0.9))
+
+buildingSerializer : Building -> Serialize.Serializer Building
+buildingSerializer building =
+  Serialize.object1 building
+    ("count", Focus.create .count (\f b -> { b | count = f b.count }), Serialize.int)
+
+serializer : Serialize.Serializer Model
+serializer =
+  let
+    focusFor building =
+      Serialize.namedListFocus .buildings (\bs m -> { m | buildings = bs }) init building
+    buildingData building =
+      (building.name, focusFor building, buildingSerializer building)
+    data =
+      List.map buildingData init.buildings
+  in
+    Serialize.foldList data init

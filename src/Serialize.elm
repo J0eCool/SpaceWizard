@@ -159,6 +159,26 @@ object4 init a b c d =
         (de a) (de b) (de c) (de d)
     }
 
+object5 : m -> SerializeData m a -> SerializeData m b -> SerializeData m c ->
+  SerializeData m d -> SerializeData m e -> Serializer m
+object5 init a b c d e =
+  let
+    fo (_, focus, _) = focus
+    de (name, _, serializer) = (name := serializer.decoder)
+    en = encodeObject
+  in
+    { encode = \m -> E.object [en a m, en b m, en c m, en d m, en e m]
+    , decoder = D.object5
+        (\x y z i j ->
+          set (fo a) x
+            <| set (fo b) y
+            <| set (fo c) z
+            <| set (fo d) i
+            <| set (fo e) j
+            <| init)
+        (de a) (de b) (de c) (de d) (de e)
+    }
+
 type alias Named a =
   { a | name : String }
 
