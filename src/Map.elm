@@ -6,8 +6,7 @@ import Html.Events exposing (onClick)
 
 import BattleStats
 import Format
-import ListUtil exposing (index, updateIndex, indexWith)
-import Operators exposing ((?>))
+import ListUtil exposing (index, updateIndex)
 import Serialize
 
 type alias Model =
@@ -178,21 +177,7 @@ serializer : Serialize.Serializer Model
 serializer =
   let
     focusFor area =
-      let
-        idx =
-          indexWith (\a -> a.name == area.name) init.areas
-        getter model =
-          idx ?> (\i -> index i model.areas)
-            |> Maybe.withDefault initArea
-        updater f model =
-          case idx of
-            Just i ->
-              let areas = updateIndex i f model.areas
-              in { model | areas = areas }
-            Nothing ->
-              model
-      in
-        Focus.create getter updater
+      Serialize.namedListFocus .areas (\areas m -> { m | areas = areas }) init area
     areaData area =
       (area.name, focusFor area, areaSerializer area)
     data =

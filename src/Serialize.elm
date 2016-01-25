@@ -4,7 +4,8 @@ import Focus exposing (..)
 import Json.Decode as D exposing ((:=))
 import Json.Encode as E exposing (Value)
 
-import ListUtil exposing (findWith)
+import ListUtil exposing (index, findWith, indexWith, updateIndex)
+import Operators exposing ((?>))
 
 type alias Serializer a =
   { encode : a -> Value
@@ -158,23 +159,28 @@ object4 init a b c d =
         (de a) (de b) (de c) (de d)
     }
 
-stringList : List a -> Serializer a
-stringList list =
-  let
-    encode item =
-      E.string <| toString item
-    decoder =
-      D.string `D.andThen` (\name ->
-        case findWith (\t -> name == toString t) list of
-          Just t ->
-            D.succeed t
-          Nothing ->
-            D.fail <| "Unexpected type " ++ name
-      )
-  in
-    pair encode decoder
+type alias Named a =
+  { a | name : String }
 
-namedStringList : List { a | name : String } -> Serializer { a | name : String }
+namedListFocus : (b -> List (Named a)) -> (List (Named a) -> b -> b) -> b -> Named a -> Focus b (Named a)
+namedListFocus get set model item =
+  let
+    idx =
+      indexWith (\a -> a.name == item.name) (get model)
+    getter m =
+      idx ?> (\i -> index i (get m))
+        |> Maybe.withDefault item
+    updater f m =
+      case idx of
+        Just i ->
+          let updated = updateIndex i f (get m)
+          in set updated m
+        Nothing ->
+          m
+  in
+    create getter updater
+
+namedStringList : List (Named a) -> Serializer (Named a)
 namedStringList list =
   let
     encode item =
