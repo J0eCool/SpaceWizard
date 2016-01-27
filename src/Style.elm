@@ -235,22 +235,3 @@ pixelated =
 flipHorizontal : Style
 flipHorizontal =
     ( "transform", "scaleX(-1)" )
-
-
-
--------------------------
-
-
-backgroundImage : String -> Style
-backgroundImage url =
-    ( "background-image", "url('" ++ url ++ "')" )
-
-
-pixelated : Style
-pixelated =
-    ( "image-rendering", "pixelated" )
-
-
-flipHorizontal : Style
-flipHorizontal =
-    ( "transform", "scaleX(-1)" )
