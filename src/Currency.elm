@@ -1,92 +1,111 @@
-module Currency where
+module Currency (..) where
 
 import Maybe
-
 import ListUtil
 
+
 type Type
-  = Invalid -- Used for default for to/fromEnum
-  | Experience
-  | Gold
-  | Iron
-  | Aluminum
-  | Steel
+    = Invalid
+    | Experience
+    | Gold
+    | Iron
+    | Aluminum
+    | Steel
+
 
 type alias Bundle =
-  (Type, Int)
+    ( Type, Int )
+
 
 type alias FloatBundle =
-  (Type, Float)
+    ( Type, Float )
+
 
 type alias Kind =
-  { abbreviation : String
-  , enum : Int
-  }
+    { abbreviation : String
+    , enum : Int
+    }
+
 
 toKind : Type -> Kind
 toKind t =
-  case t of
-    Invalid ->
-      { abbreviation = "INVALID"
-      , enum = -1
-      }
-    Experience ->
-      { abbreviation = "EXP"
-      , enum = 0
-      }
-    Gold ->
-      { abbreviation = "G"
-      , enum = 1
-      }
-    Iron ->
-      { abbreviation = "Ir"
-      , enum = 2
-      }
-    Aluminum ->
-      { abbreviation = "Al"
-      , enum = 3
-      }
-    Steel ->
-      { abbreviation = "St"
-      , enum = 4
-      }
+    case t of
+        Invalid ->
+            { abbreviation = "INVALID"
+            , enum = -1
+            }
+
+        Experience ->
+            { abbreviation = "EXP"
+            , enum = 0
+            }
+
+        Gold ->
+            { abbreviation = "G"
+            , enum = 1
+            }
+
+        Iron ->
+            { abbreviation = "Ir"
+            , enum = 2
+            }
+
+        Aluminum ->
+            { abbreviation = "Al"
+            , enum = 3
+            }
+
+        Steel ->
+            { abbreviation = "St"
+            , enum = 4
+            }
+
 
 allTypes : List Type
 allTypes =
-  [ Gold
-  , Experience
-  , Iron
-  , Aluminum
-  , Steel
-  ]
+    [ Gold
+    , Experience
+    , Iron
+    , Aluminum
+    , Steel
+    ]
+
 
 abbreviation : Type -> String
 abbreviation t =
-  (toKind t).abbreviation
+    (toKind t).abbreviation
+
 
 toEnum : Type -> Int
 toEnum t =
-  (toKind t).enum
+    (toKind t).enum
+
 
 fromEnum : Int -> Type
 fromEnum e =
-  let
-    pred t = (toKind t).enum == e
-    found = ListUtil.findWith pred allTypes
-  in case found of
-    Just t ->
-      t
-    Nothing ->
-      Invalid
+    let
+        pred t = (toKind t).enum == e
 
-bundleToEnum : (Type, a) -> (Int, a)
-bundleToEnum (t, packed) =
-  (toEnum t, packed)
+        found = ListUtil.findWith pred allTypes
+    in
+        case found of
+            Just t ->
+                t
 
-bundleFromEnum : (Int, a) -> (Type, a)
-bundleFromEnum (enum, packed) =
-  (fromEnum enum, packed)
+            Nothing ->
+                Invalid
 
-bundleMap : (Int -> a) -> Bundle -> (Type, a)
-bundleMap f (t, amt) =
-  (t, f amt)
+
+bundleToEnum : ( Type, a ) -> ( Int, a )
+bundleToEnum ( t, packed ) =
+    ( toEnum t, packed )
+
+
+bundleFromEnum : ( Int, a ) -> ( Type, a )
+bundleFromEnum ( enum, packed ) =
+    ( fromEnum enum, packed )
+
+
+bundleMap : (Int -> a) -> Bundle -> ( Type, a )
+bundleMap f ( t, amt ) =
+    ( t, f amt )
