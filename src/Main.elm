@@ -7,8 +7,8 @@ import Html exposing (Html, span, div, button, text, h3, ul, li)
 import Html.Attributes exposing (class)
 import Html.Events exposing (onClick)
 import Html.Lazy exposing (lazy, lazy2)
-import Json.Decode as Decode exposing ((:=))
-import Json.Encode as Encode exposing (Value)
+import Json.Decode as Decode
+import Json.Encode as Encode
 import Keyboard
 import Signal
 import StartApp
@@ -23,6 +23,7 @@ import Format
 import Inventory
 import Keys
 import Map
+import MaybeUtil exposing (..)
 import Serialize
 
 
@@ -35,6 +36,7 @@ type alias Model =
     , map : Map.Model
     , activeMainTab : Tab
     , loadError : Maybe String
+    , shouldSave : Bool
     }
 
 
@@ -107,6 +109,7 @@ init =
         , map = map
         , activeMainTab = BattleTab
         , loadError = Nothing
+        , shouldSave = True
         }
 
 
@@ -316,7 +319,10 @@ load storage model =
             case Decode.decodeString serializer.decoder save of
                 Err err ->
                     -- save could not be read
-                    { model | loadError = Just err }
+                    { model
+                        | loadError = Just err
+                        , shouldSave = False
+                    }
 
                 Ok loaded ->
                     -- save was loaded successfully
@@ -326,5 +332,12 @@ load storage model =
 port getStorage : Maybe String
 port setStorage : Signal String
 port setStorage =
-    Signal.map (Encode.encode 0 << serializer.encode) app.model
-        |> Signal.sampleOn (Time.every <| 1 * Time.second)
+    let
+        encode model =
+            if model.shouldSave then
+                Encode.encode 0 (Serialize.encode serializer model)
+            else
+                ""
+    in
+        Signal.map encode app.model
+            |> Signal.sampleOn (Time.every <| 1 * Time.second)

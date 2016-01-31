@@ -4,5 +4,10 @@ var initialState = {
 }
 var main = Elm.fullscreen(Elm.Main, initialState);
 main.ports.setStorage.subscribe(function(toSave) {
-    localStorage.setItem(saveKey, toSave);
+    if (toSave !== "") {
+        localStorage.setItem(saveKey, toSave);
+    }
+});
+main.ports.clearStorage.subscribe(function(unit) {
+    localStorage.setItem(saveKey, null);
 });
