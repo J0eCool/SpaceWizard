@@ -37,11 +37,13 @@ type alias Model =
     , activeMainTab : Tab
     , loadError : Maybe String
     , shouldSave : Bool
+    , shouldClearSave : Bool
     }
 
 
 type Action
-    = Tick Float
+    = NoOp
+    | Tick Float
     | ChooseTab Tab
     | BattleAction Battle.Action
     | StatsAction BattleStats.Action
@@ -49,6 +51,8 @@ type Action
     | BuildingAction Buildings.Action
     | MapAction Map.Action
     | KeyPress Keys.Key
+    | ClearSave
+    | DidClearSave
 
 
 type Tab
@@ -110,6 +114,7 @@ init =
         , activeMainTab = BattleTab
         , loadError = Nothing
         , shouldSave = True
+        , shouldClearSave = False
         }
 
 
@@ -117,6 +122,14 @@ inputs : List (Signal Action)
 inputs =
     [ fps 60 |> Signal.map Tick
     , Keys.pressed |> Signal.map KeyPress
+    , didClearStorage
+        |> Signal.map
+            (\b ->
+                if b then
+                    DidClearSave
+                else
+                    NoOp
+            )
     ]
 
 
@@ -148,12 +161,16 @@ view address model =
                    , lazy2 (BattleStats.view <| fwd StatsAction) model.equipment model.stats
                    ]
                 ++ saveErr
+                ++ [ button [ onClick address ClearSave ] [ text "DELETE SAVE" ] ]
             )
 
 
 update : Action -> Model -> Model
 update action model =
     case action of
+        NoOp ->
+            model
+
         Tick delta ->
             let
                 dT = inSeconds delta
@@ -250,6 +267,15 @@ update action model =
             in
                 { model | battle = updatedBattle }
 
+        ClearSave ->
+            { model
+                | shouldClearSave = True
+                , shouldSave = False
+            }
+
+        DidClearSave ->
+            init
+
 
 tabData : Tab -> { name : String, view : View }
 tabData tab =
@@ -330,6 +356,7 @@ load storage model =
 
 
 port getStorage : Maybe String
+port didClearStorage : Signal Bool
 port setStorage : Signal String
 port setStorage =
     let
@@ -341,3 +368,8 @@ port setStorage =
     in
         Signal.map encode app.model
             |> Signal.sampleOn (Time.every <| 1 * Time.second)
+
+
+port clearStorage : Signal Bool
+port clearStorage =
+    Signal.map .shouldClearSave app.model

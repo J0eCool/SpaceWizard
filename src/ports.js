@@ -1,6 +1,7 @@
 var saveKey = "space-wiz-save";
 var initialState = {
     getStorage: localStorage.getItem(saveKey),
+    didClearStorage: false
 }
 var main = Elm.fullscreen(Elm.Main, initialState);
 main.ports.setStorage.subscribe(function(toSave) {
@@ -8,6 +9,8 @@ main.ports.setStorage.subscribe(function(toSave) {
         localStorage.setItem(saveKey, toSave);
     }
 });
-main.ports.clearStorage.subscribe(function(unit) {
-    localStorage.setItem(saveKey, null);
+main.ports.clearStorage.subscribe(function(shouldClear) {
+    if (shouldClear && confirm("Really delete save?")) {
+        main.ports.didClearStorage.send(true)
+    }
 });
