@@ -52,7 +52,7 @@ type Action
     | MapAction Map.Action
     | KeyPress Keys.Key
     | ClearSave
-    | DidClearSave
+    | DidClearSave Bool
 
 
 type Tab
@@ -121,15 +121,10 @@ init =
 inputs : List (Signal Action)
 inputs =
     [ fps 60 |> Signal.map Tick
-    , Keys.pressed |> Signal.map KeyPress
+    , Keys.pressed
+        |> Signal.map KeyPress
     , didClearStorage
-        |> Signal.map
-            (\b ->
-                if b then
-                    DidClearSave
-                else
-                    NoOp
-            )
+        |> Signal.map DidClearSave
     ]
 
 
@@ -273,8 +268,11 @@ update action model =
                 , shouldSave = False
             }
 
-        DidClearSave ->
-            init
+        DidClearSave clear ->
+            if clear then
+                init
+            else
+                { model | shouldClearSave = False }
 
 
 tabData : Tab -> { name : String, view : View }

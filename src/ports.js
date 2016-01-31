@@ -10,7 +10,8 @@ main.ports.setStorage.subscribe(function(toSave) {
     }
 });
 main.ports.clearStorage.subscribe(function(shouldClear) {
-    if (shouldClear && confirm("Really delete save?")) {
-        main.ports.didClearStorage.send(true)
+    if (shouldClear) {
+        var accepted = confirm("Really delete save?");
+        main.ports.didClearStorage.send(accepted)
     }
 });
