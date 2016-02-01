@@ -14,6 +14,7 @@ import ListUtil exposing (mapSum)
 import Serialize
 import Style exposing (..)
 import Widgets.ProgressBar as ProgressBar
+import Widgets.UpgradeSlot as UpgradeSlot
 
 
 type alias Model =
@@ -46,10 +47,7 @@ type alias Stat =
 
 
 type Action
-    = SetHeld TimedAction
-    | SetHover TimedAction
-    | Release
-    | MoveOut
+    = UpgradeAction (UpgradeSlot.Action TimedAction)
     | Tick Float
 
 
@@ -117,22 +115,24 @@ update action model =
         no m = ( m, [] )
     in
         case action of
-            SetHeld action ->
-                no { model | heldAction = Just action }
+            UpgradeAction action ->
+                case action of
+                    UpgradeSlot.SetHeld action ->
+                        no { model | heldAction = Just action }
 
-            SetHover action ->
-                no { model | hoveredUpgrade = Just action }
+                    UpgradeSlot.SetHover action ->
+                        no { model | hoveredUpgrade = Just action }
 
-            Release ->
-                no
-                    { model
-                        | heldAction = Nothing
-                        , upgradeVelocity = 0
-                    }
+                    UpgradeSlot.Release ->
+                        no
+                            { model
+                                | heldAction = Nothing
+                                , upgradeVelocity = 0
+                            }
 
-            MoveOut ->
-                { model | hoveredUpgrade = Nothing }
-                    |> update Release
+                    UpgradeSlot.MoveOut ->
+                        { model | hoveredUpgrade = Nothing }
+                            |> update (UpgradeAction UpgradeSlot.Release)
 
             Tick dT ->
                 case model.heldAction of
@@ -191,58 +191,16 @@ view address equip model =
 viewBaseStats : Signal.Address Action -> Model -> Html
 viewBaseStats address model =
     let
+        forwarded =
+            Signal.forwardTo address UpgradeAction
+
+        upgradeContext =
+            { title = .name
+            , level = .level
+            }
+
         viewStat focus =
-            let
-                stat =
-                    get focus model
-
-                title =
-                    stat.name
-
-                curCost =
-                    cost 1 focus model
-
-                upgradeButton delta label action =
-                    let
-                        curCost =
-                            cost delta focus model
-                    in
-                        button
-                            [ onMouseDown address <| SetHeld action
-                            , onMouseEnter address <| SetHover action
-                            , onMouseUp address <| Release
-                            , onMouseLeave address <| MoveOut
-                            ]
-                            [ text
-                                <| label
-                                ++ " ("
-                                ++ Format.currency curCost
-                                ++ ")"
-                            ]
-
-                next =
-                    ceiling <| stat.level + 1.0e-6
-
-                toNext =
-                    toFloat next - stat.level
-            in
-                li
-                    []
-                    [ span
-                        [ style
-                            [ display InlineBlock
-                            , width <| Px 120
-                            ]
-                        ]
-                        [ text
-                            <| title
-                            ++ ": "
-                            ++ Format.float stat.level
-                        ]
-                    , ProgressBar.xpBar stat.level
-                    , upgradeButton 1 "Upgrade" (Upgrade focus)
-                    , upgradeButton toNext ("To " ++ Format.int next) (LimitedUpgrade next focus)
-                    ]
+            UpgradeSlot.viewStat upgradeContext cost Upgrade forwarded focus model
 
         items =
             List.map viewStat allStatFocuses

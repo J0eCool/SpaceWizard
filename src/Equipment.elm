@@ -12,6 +12,7 @@ import Style exposing (..)
 import Weapon
 import Widgets
 import Widgets.ProgressBar as ProgressBar
+import Widgets.UpgradeSlot as UpgradeSlot
 
 
 type alias Model =
@@ -42,8 +43,7 @@ init =
 type Action
     = NoOp
     | Tick Float
-    | SetHeld TimedAction
-    | Release
+    | UpgradeAction (UpgradeSlot.Action TimedAction)
     | Equip Weapon.Model
     | Discard Weapon.Model
     | SelectType Weapon.Type
@@ -119,11 +119,19 @@ update action model =
                     , Weapon.craftCost crafted
                     )
 
-            SetHeld act ->
-                no { model | heldAction = Just act }
+            UpgradeAction action ->
+                case action of
+                    UpgradeSlot.SetHeld act ->
+                        no { model | heldAction = Just act }
 
-            Release ->
-                no { model | heldAction = Nothing, upgradeVelocity = 0 }
+                    UpgradeSlot.SetHover act ->
+                        no model
+
+                    UpgradeSlot.Release ->
+                        no { model | heldAction = Nothing, upgradeVelocity = 0 }
+
+                    UpgradeSlot.MoveOut ->
+                        update (UpgradeAction UpgradeSlot.Release) model
 
             Tick dT ->
                 case model.heldAction of
@@ -202,34 +210,19 @@ viewWeapon address elem model weapon =
         focus =
             focusFor weapon model
 
-        upgradeCost =
-            cost 1 focus model
-
         isEquipped =
             model.weapon == weapon
 
+        forwarded =
+            Signal.forwardTo address UpgradeAction
+
+        upgradeContext =
+            { title = always "Level"
+            , level = .level
+            }
+
         upgradeButton =
-            [ li
-                []
-                [ span
-                    [ style
-                        [ display InlineBlock
-                        , width <| Px 120
-                        ]
-                    ]
-                    [ text <| "Level: " ++ Format.float weapon.level ]
-                , button
-                    [ onMouseDown address <| SetHeld <| Upgrade focus
-                    , onMouseUp address Release
-                    , onMouseLeave address Release
-                    ]
-                    [ text <| "Upgrade (" ++ Format.currency upgradeCost ++ ")" ]
-                , div
-                    []
-                    [ ProgressBar.xpBar weapon.level
-                    ]
-                ]
-            ]
+            [ UpgradeSlot.viewStat upgradeContext cost Upgrade forwarded focus model]
 
         inventoryActionButtons =
             if isEquipped then

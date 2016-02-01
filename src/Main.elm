@@ -22,6 +22,7 @@ import Equipment
 import Format
 import Inventory
 import Keys
+import Mana
 import Map
 import MaybeUtil exposing (..)
 import Serialize
@@ -34,6 +35,7 @@ type alias Model =
     , equipment : Equipment.Model
     , buildings : Buildings.Model
     , map : Map.Model
+    , mana : Mana.Model
     , activeMainTab : Tab
     , loadError : Maybe String
     , shouldSave : Bool
@@ -50,6 +52,7 @@ type Action
     | EquipAction Equipment.Action
     | BuildingAction Buildings.Action
     | MapAction Map.Action
+    | ManaAction Mana.Action
     | KeyPress Keys.Key
     | ClearSave
     | DidClearSave Bool
@@ -111,6 +114,7 @@ init =
         , equipment = equip
         , buildings = Buildings.init
         , map = map
+        , mana = Mana.init
         , activeMainTab = BattleTab
         , loadError = Nothing
         , shouldSave = True
@@ -153,6 +157,7 @@ view address model =
             (tabs
                 ++ [ (tabData model.activeMainTab).view address model
                    , lazy Inventory.view model.inventory
+                   , lazy (Mana.view <| fwd ManaAction) model.mana
                    , lazy2 (BattleStats.view <| fwd StatsAction) model.equipment model.stats
                    ]
                 ++ saveErr
@@ -175,6 +180,7 @@ update action model =
                     , StatsAction << BattleStats.Tick
                     , BuildingAction << Buildings.Tick
                     , EquipAction << Equipment.Tick
+                    , ManaAction << Mana.Tick
                     ]
 
                 actions =
@@ -250,6 +256,9 @@ update action model =
             in
                 { model | map = updatedMap }
                     |> battleUpdate
+
+        ManaAction action ->
+            { model | mana = Mana.update action model.mana }
 
         KeyPress key ->
             let
