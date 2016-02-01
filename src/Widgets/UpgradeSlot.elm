@@ -19,6 +19,7 @@ type alias Context model cost =
   { title : model -> String
   , level : model -> Float
   , format : cost -> String
+  , elem : List Html.Attribute -> List Html -> Html
   }
 
 
@@ -69,7 +70,7 @@ viewStat ctx cost action address focus model =
     toNext =
       toFloat next - level
   in
-    li
+    ctx.elem
       []
       [ span
           [ style

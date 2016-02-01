@@ -1,29 +1,43 @@
 module Buildings (..) where
 
-import Focus
+import Focus exposing (Focus, (=>))
 import Html exposing (Html, div, span, h3, text, ul, li, button)
 import Html.Events exposing (onClick)
+import Cost
 import Currency
 import Format
+import ListUtil exposing (mapSum)
 import Serialize
+import Widgets.UpgradeSlot as UpgradeSlot
 
 
 type alias Model =
   { buildings : List Building
+  , heldAction : Maybe TimedAction
+  , upgradeVelocity : Float
   }
 
 
 type alias Building =
   { name : String
   , count : Int
+  , level : Float
+  , manaLevel : Float
   , production : Currency.FloatBundle
   , baseCost : Currency.Bundle
+  , upgradeCost : Currency.Bundle
+  , manaCost : Int
   }
 
 
 type Action
   = Tick Float
   | Buy Building
+  | UpgradeAction (UpgradeSlot.Action TimedAction)
+
+
+type TimedAction
+  = Upgrade (Focus Model Building)
 
 
 type alias Effect =
@@ -35,17 +49,45 @@ type alias Effect =
 init : Model
 init =
   { buildings =
-      [ { name = "Iron Miner"
+      [ { name = "Gold Miner"
         , count = 0
+        , level = 1
+        , manaLevel = 1
+        , production = ( Currency.Gold, 1 )
+        , baseCost = ( Currency.Gold, 1000 )
+        , upgradeCost = ( Currency.Gold, 10000 )
+        , manaCost = 100
+        }
+      , { name = "Iron Miner"
+        , count = 0
+        , level = 1
+        , manaLevel = 1
         , production = ( Currency.Iron, 0.5 )
         , baseCost = ( Currency.Gold, 100 )
+        , upgradeCost = ( Currency.Iron, 1000 )
+        , manaCost = 100
         }
       , { name = "Aluminum Miner"
         , count = 0
+        , level = 1
+        , manaLevel = 1
         , production = ( Currency.Aluminum, 0.4 )
-        , baseCost = ( Currency.Iron, 10 )
+        , baseCost = ( Currency.Iron, 250 )
+        , upgradeCost = ( Currency.Aluminum, 1000 )
+        , manaCost = 100
+        }
+      , { name = "Steel Smelter"
+        , count = 0
+        , level = 1
+        , manaLevel = 1
+        , production = ( Currency.Steel, 0.3 )
+        , baseCost = ( Currency.Aluminum, 750 )
+        , upgradeCost = ( Currency.Steel, 1000 )
+        , manaCost = 100
         }
       ]
+  , heldAction = Nothing
+  , upgradeVelocity = 0
   }
 
 
@@ -57,10 +99,13 @@ update action model =
 
     costEffect c m =
       ( m, { reward = [], cost = c } )
+
+    no m =
+      ( m, { reward = [], cost = [] } )
   in
     case action of
       Tick dT ->
-        rewardEffect (totalProduction dT model) model
+        updateTick dT model
 
       Buy building ->
         let
@@ -81,48 +126,146 @@ update action model =
         in
           costEffect cost updatedModel
 
+      UpgradeAction action ->
+        case action of
+          UpgradeSlot.SetHeld act ->
+            no { model | heldAction = Just act }
+
+          UpgradeSlot.SetHover act ->
+            no model
+
+          UpgradeSlot.Release ->
+            no { model | heldAction = Nothing, upgradeVelocity = 0 }
+
+          UpgradeSlot.MoveOut ->
+            update (UpgradeAction UpgradeSlot.Release) model
+
+
+updateTick : Float -> Model -> ( Model, Effect )
+updateTick dT model =
+  let
+    ( upgradedModel, cost ) =
+      case model.heldAction of
+        Nothing ->
+          ( model, [] )
+
+        Just action ->
+          updateUpgrade dT action model
+
+    reward =
+      totalProduction dT model
+  in
+    ( upgradedModel
+    , { reward = reward
+      , cost = cost
+      }
+    )
+
+
+updateUpgrade : Float -> TimedAction -> Model -> ( Model, List Currency.Bundle )
+updateUpgrade dT action model =
+  let
+    vel =
+      model.upgradeVelocity + dT
+
+    amt =
+      vel * dT
+
+    tickedModel =
+      { model | upgradeVelocity = vel }
+  in
+    case action of
+      Upgrade focus ->
+        let
+          building =
+            Focus.get focus model
+
+          upgraded =
+            { building | level = building.level + amt }
+
+          cost =
+            upgradeCost amt focus model
+        in
+          ( Focus.set focus upgraded tickedModel, [ cost ] )
+
 
 view : Signal.Address Action -> Model -> Html
 view address model =
   div
     []
     [ h3 [] [ text "Buildings" ]
-    , ul [] <| List.map (viewBuilding address) model.buildings
+    , ul [] <| List.map (viewBuilding address model) model.buildings
     ]
 
 
-viewBuilding : Signal.Address Action -> Building -> Html
-viewBuilding address building =
-  li
-    []
-    [ div [] [ text building.name ]
-    , div [] [ text <| "Owned: " ++ Format.int building.count ]
-    , div [] [ text <| "+" ++ Format.floatCurrency building.production ++ "/s" ]
-    , div
-        []
-        [ button
-            [ onClick address <| Buy building ]
-            [ text <| "Buy (" ++ Format.currency (purchaseCost building) ++ ")" ]
-        ]
-    ]
+viewBuilding : Signal.Address Action -> Model -> Building -> Html
+viewBuilding address model building =
+  let
+    focus =
+      focusFor building
+
+    forwarded =
+      Signal.forwardTo address UpgradeAction
+
+    upgradeContext =
+      { title = always "Level"
+      , level = .level
+      , format = Format.currency
+      , elem = div
+      }
+  in
+    li
+      []
+      [ div [] [ text building.name ]
+      , div [] [ text <| "Owned: " ++ Format.int building.count ]
+      , div [] [ text <| "+" ++ Format.floatCurrency (individualProduction building) ++ "/s" ]
+      , div
+          []
+          [ button
+              [ onClick address <| Buy building ]
+              [ text <| "Buy (" ++ Format.currency (purchaseCost building) ++ ")" ]
+          ]
+      , UpgradeSlot.viewStat upgradeContext upgradeCost Upgrade forwarded focus model
+      ]
+
+
+individualProduction : Building -> Currency.FloatBundle
+individualProduction building =
+  let
+    ( t, base ) =
+      building.production
+
+    lv =
+      2 ^ (building.level - 1)
+
+    amount =
+      base * lv
+  in
+    ( t, amount )
+
+
+production : Building -> Currency.FloatBundle
+production building =
+  let
+    ( t, individual ) =
+      individualProduction building
+
+    count =
+      toFloat building.count
+  in
+    ( t, count * individual )
 
 
 totalProduction : Float -> Model -> List Currency.FloatBundle
 totalProduction dT model =
   let
-    production building =
-      let
-        ( t, base ) =
-          building.production
-      in
-        ( t, dT * toFloat building.count * base )
-
-    notZero ( _, amount ) =
-      amount > 0
+    notZero building =
+      building.count > 0
   in
     model.buildings
-      |> List.map production
       |> List.filter notZero
+      |> List.map production
+      |> List.map (\( t, x ) -> ( t, x * dT ))
 
 
 purchaseCost : Building -> Currency.Bundle
@@ -134,19 +277,56 @@ purchaseCost building =
     ( t, floor <| toFloat base * 1.067 ^ (toFloat building.count ^ 0.9) )
 
 
+upgradeCost : Float -> Focus Model Building -> Model -> Currency.Bundle
+upgradeCost delta focus model =
+  ( Focus.get focus model
+      |> .upgradeCost
+      |> fst
+  , Cost.cost totalUpgradeCost delta (focus => level) model
+  )
+
+
+totalUpgradeCost : Model -> Int
+totalUpgradeCost model =
+  let
+    buildingCost building =
+      let
+        lv =
+          building.level - 1
+
+        mult =
+          3.25
+      in
+        floor <| toFloat (snd building.upgradeCost) * (mult ^ lv) * lv / mult
+  in
+    mapSum buildingCost model.buildings
+
+
 buildingSerializer : Building -> Serialize.Serializer Building
 buildingSerializer building =
-  Serialize.object1
+  Serialize.object3
     building
     ( "count", Focus.create .count (\f b -> { b | count = f b.count }), Serialize.int )
+    ( "level", Focus.create .level (\f b -> { b | level = f b.level }), Serialize.float )
+    ( "manaLevel", Focus.create .manaLevel (\f b -> { b | manaLevel = f b.manaLevel }), Serialize.float )
+
+
+focusFor : Building -> Focus.Focus Model Building
+focusFor building =
+  Serialize.namedListFocus .buildings (\bs m -> { m | buildings = bs }) init building
+
+
+level =
+  Focus.create .level (\f b -> { b | level = f b.level })
+
+
+manaLevel =
+  Focus.create .manaLevel (\f b -> { b | manaLevel = f b.manaLevel })
 
 
 serializer : Serialize.Serializer Model
 serializer =
   let
-    focusFor building =
-      Serialize.namedListFocus .buildings (\bs m -> { m | buildings = bs }) init building
-
     buildingData building =
       ( building.name, focusFor building, buildingSerializer building )
 

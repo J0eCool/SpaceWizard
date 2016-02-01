@@ -200,6 +200,7 @@ viewBaseStats address model =
       { title = .name
       , level = .level
       , format = Format.currency
+      , elem = li
       }
 
     viewStat focus =

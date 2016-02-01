@@ -149,6 +149,7 @@ viewBaseStats address model =
           { title = always name
           , level = identity
           , format = \c -> Format.int c ++ " Mana"
+          , elem = li
           }
       in
         UpgradeSlot.viewStat upgradeContext cost Upgrade forwarded focus model
@@ -211,9 +212,14 @@ totalCost model =
     totalCost
 
 
+canSpend : Int -> Model -> Bool
+canSpend cost model =
+  toFloat cost <= model.current
+
+
 trySpend : Int -> Model -> Model -> Model
 trySpend cost upgraded model =
-  if toFloat cost <= upgraded.current then
+  if canSpend cost upgraded then
     { upgraded | current = upgraded.current - toFloat cost }
   else
     model

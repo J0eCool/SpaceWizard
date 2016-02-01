@@ -222,6 +222,7 @@ viewWeapon address elem model weapon =
       { title = always "Level"
       , level = .level
       , format = Format.currency
+      , elem = li
       }
 
     upgradeButton =
