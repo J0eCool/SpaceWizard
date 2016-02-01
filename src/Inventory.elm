@@ -9,148 +9,147 @@ import Serialize
 
 
 type alias Model =
-    Dict.Dict Int Float
-
-
-
--- Dict Type Float
+  Dict.Dict Int Float
 
 
 init : Model
 init =
-    [ Currency.Gold
-    , Currency.Experience
-    ]
-        |> List.map (\t -> ( t, 0 ))
-        |> List.map Currency.bundleToEnum
-        |> Dict.fromList
+  [ Currency.Gold
+  , Currency.Experience
+  ]
+    |> List.map (\t -> ( t, 0 ))
+    |> List.map Currency.bundleToEnum
+    |> Dict.fromList
 
 
 view : Model -> Html
 view model =
-    div
-        []
-        [ h3 [] [ text "Currency" ]
-        , let
-            lines = map viewCurrency model
-          in
-            ul [] lines
-        ]
+  div
+    []
+    [ h3 [] [ text "Currency" ]
+    , let
+        lines =
+          map viewCurrency model
+      in
+        ul [] lines
+    ]
 
 
 viewCurrency : Currency.FloatBundle -> Html
 viewCurrency ( t, value ) =
-    li
-        []
-        [ span [] [ text <| toString t ++ ":" ]
-        , span [] [ text <| Format.int <| floor value ]
-        ]
+  li
+    []
+    [ span [] [ text <| toString t ++ ":" ]
+    , span [] [ text <| Format.int <| floor value ]
+    ]
 
 
 get : Currency.Type -> Model -> Int
 get t model =
-    Dict.get (Currency.toEnum t) model
-        |> Maybe.withDefault 0
-        |> floor
+  Dict.get (Currency.toEnum t) model
+    |> Maybe.withDefault 0
+    |> floor
 
 
 update : Currency.Type -> (Maybe Float -> Maybe Float) -> Model -> Model
 update t f model =
-    Dict.update (Currency.toEnum t) f model
+  Dict.update (Currency.toEnum t) f model
 
 
 gain : Currency.Bundle -> Model -> Model
 gain ( t, delta ) model =
-    gainFloat ( t, toFloat delta ) model
+  gainFloat ( t, toFloat delta ) model
 
 
 gainFloat : Currency.FloatBundle -> Model -> Model
 gainFloat ( t, delta ) model =
-    let
-        f amount =
-            Just
-                <| case amount of
-                    Just a ->
-                        a + delta
+  let
+    f amount =
+      Just
+        <| case amount of
+            Just a ->
+              a + delta
 
-                    Nothing ->
-                        delta
-    in
-        update t f model
+            Nothing ->
+              delta
+  in
+    update t f model
 
 
 spend : Currency.Bundle -> Model -> Result String Model
 spend ( t, cost ) model =
-    let
-        curAmt = get t model
+  let
+    curAmt =
+      get t model
 
-        canAfford = curAmt >= cost
-    in
-        if canAfford then
-            Ok <| gain ( t, -cost ) model
-        else
-            Err <| "Not enough " ++ toString t
+    canAfford =
+      curAmt >= cost
+  in
+    if canAfford then
+      Ok <| gain ( t, -cost ) model
+    else
+      Err <| "Not enough " ++ toString t
 
 
 spendAll : List Currency.Bundle -> Model -> Result String Model
 spendAll costs model =
-    let
-        f cost res =
-            case res of
-                Ok inv ->
-                    spend cost inv
+  let
+    f cost res =
+      case res of
+        Ok inv ->
+          spend cost inv
 
-                e ->
-                    e
-    in
-        List.foldl f (Ok model) costs
+        e ->
+          e
+  in
+    List.foldl f (Ok model) costs
 
 
 applyRewards : List Currency.Bundle -> Model -> Model
 applyRewards rewards model =
-    List.foldl gain model rewards
+  List.foldl gain model rewards
 
 
 applyFloatRewards : List Currency.FloatBundle -> Model -> Model
 applyFloatRewards rewards model =
-    List.foldl gainFloat model rewards
+  List.foldl gainFloat model rewards
 
 
 map : (Currency.FloatBundle -> b) -> Model -> List b
 map f model =
-    Dict.toList model
-        |> List.map Currency.bundleFromEnum
-        |> List.map f
+  Dict.toList model
+    |> List.map Currency.bundleFromEnum
+    |> List.map f
 
 
 foucsFor : Currency.Type -> Focus.Focus Model Int
 foucsFor t =
-    let
-        default f val =
-            val
-                |> Maybe.withDefault 0
-                |> floor
-                |> f
-                |> toFloat
-                |> \i ->
-                    if i > 0 then
-                        Just i
-                    else
-                        Nothing
+  let
+    default f val =
+      val
+        |> Maybe.withDefault 0
+        |> floor
+        |> f
+        |> toFloat
+        |> \i ->
+            if i > 0 then
+              Just i
+            else
+              Nothing
 
-        updater f m =
-            update t (default f) m
-    in
-        Focus.create (get t) updater
+    updater f m =
+      update t (default f) m
+  in
+    Focus.create (get t) updater
 
 
 serializer : Serialize.Serializer Model
 serializer =
-    let
-        toData t =
-            ( toString t, foucsFor t, Serialize.int )
+  let
+    toData t =
+      ( toString t, foucsFor t, Serialize.int )
 
-        data =
-            List.map toData Currency.allTypes
-    in
-        Serialize.foldList data init
+    data =
+      List.map toData Currency.allTypes
+  in
+    Serialize.foldList data init

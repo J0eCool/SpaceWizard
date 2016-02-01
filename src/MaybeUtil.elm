@@ -3,14 +3,14 @@ module MaybeUtil (..) where
 
 isJust : Maybe a -> Bool
 isJust maybe =
-    case maybe of
-        Just _ ->
-            True
+  case maybe of
+    Just _ ->
+      True
 
-        Nothing ->
-            False
+    Nothing ->
+      False
 
 
 isNothing : Maybe a -> Bool
 isNothing maybe =
-    not (isJust maybe)
+  not (isJust maybe)
