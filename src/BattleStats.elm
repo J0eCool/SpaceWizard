@@ -197,6 +197,7 @@ viewBaseStats address model =
         upgradeContext =
             { title = .name
             , level = .level
+            , format = Format.currency
             }
 
         viewStat focus =
@@ -272,11 +273,6 @@ levelUp delta stat =
     { stat | level = stat.level + delta }
 
 
-cost : Float -> Focus Model Stat -> Model -> Currency.Bundle
-cost delta focus model =
-    Cost.cost totalCostValue delta (focus => level) model
-
-
 allStatFocuses : List (Focus Model Stat)
 allStatFocuses =
     [ strength
@@ -306,7 +302,14 @@ totalLevel model =
         |> \n -> n / (toFloat allStatsCount)
 
 
-totalCostValue : Model -> Currency.Bundle
+cost : Float -> Focus Model Stat -> Model -> Currency.Bundle
+cost delta focus model =
+    ( Currency.Experience
+    , Cost.cost totalCostValue delta (focus => level) model
+    )
+
+
+totalCostValue : Model -> Int
 totalCostValue model =
     let
         cost stat =
@@ -321,9 +324,7 @@ totalCostValue model =
         totalCost =
             sqrt level * baseCost
     in
-        ( Currency.Experience
-        , floor totalCost
-        )
+        floor totalCost
 
 
 attackDamage : Equipment.Model -> Model -> Int

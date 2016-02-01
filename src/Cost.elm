@@ -1,21 +1,18 @@
 module Cost (..) where
 
 import Focus exposing (..)
-import Currency
 
 
-cost : (a -> Currency.Bundle) -> Float -> Focus a Float -> a -> Currency.Bundle
+cost : (a -> Int) -> Float -> Focus a Float -> a -> Int
 cost totalCost delta focus model =
     let
-        ( currency, cur ) = totalCost model
+        cur = totalCost model
 
         nextModel = update focus ((+) delta) model
 
-        ( _, next ) = totalCost nextModel
+        next = totalCost nextModel
     in
-        ( currency
-        , next - cur
-        )
+        next - cur
 
 
 base : ( Float, Float, Float ) -> Float -> Float -> Float

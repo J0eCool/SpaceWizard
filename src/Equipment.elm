@@ -11,7 +11,6 @@ import Serialize
 import Style exposing (..)
 import Weapon
 import Widgets
-import Widgets.ProgressBar as ProgressBar
 import Widgets.UpgradeSlot as UpgradeSlot
 
 
@@ -219,6 +218,7 @@ viewWeapon address elem model weapon =
         upgradeContext =
             { title = always "Level"
             , level = .level
+            , format = Format.currency
             }
 
         upgradeButton =
@@ -332,10 +332,12 @@ level =
 
 cost : Float -> Focus Model Weapon.Model -> Model -> Currency.Bundle
 cost delta weapon model =
-    Cost.cost totalCost delta (weapon => level) model
+    ( Currency.Gold
+    , Cost.cost totalCost delta (weapon => level) model
+    )
 
 
-totalCost : Model -> Currency.Bundle
+totalCost : Model -> Int
 totalCost model =
     let
         equippedCost =
@@ -347,9 +349,7 @@ totalCost model =
         totalCost =
             equippedCost + inventoryCost
     in
-        ( Currency.Gold
-        , totalCost
-        )
+        totalCost
 
 
 serializer : Serialize.Serializer Model

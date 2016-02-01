@@ -1,6 +1,6 @@
 module Widgets.UpgradeSlot where
 
-import Focus
+import Focus exposing (Focus)
 import Html exposing (Html, div, h3, text, span, button, ul, li)
 import Html.Events exposing (onMouseDown, onMouseUp, onMouseEnter, onMouseLeave)
 import Format
@@ -14,6 +14,18 @@ type Action a
     | MoveOut
 
 
+type alias Context model cost =
+    { title : model -> String
+    , level : model -> Float
+    , format : cost -> String
+    }
+
+type alias CostFunc model cost =
+    Float -> Focus model Float -> model -> cost
+
+--viewStat : Context stat cost -> CostFunc stat cost -> (Focus model stat -> action)
+--    -> Signal.Address (Action action)
+--    -> Focus model stat -> model -> Html
 viewStat ctx cost action address focus model =
     let
         stat = Focus.get focus model
@@ -33,7 +45,7 @@ viewStat ctx cost action address focus model =
                     ]
                     [ text
                         <| "+1 ("
-                        ++ Format.currency curCost
+                        ++ ctx.format curCost
                         ++ ")"
                     ]
 
