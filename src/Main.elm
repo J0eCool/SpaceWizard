@@ -245,8 +245,10 @@ update action model =
         { model
           | inventory = Inventory.applyFloatRewards effects.reward model.inventory
         }
-          |> tryPurchase buildingSetter ( updatedBuildings, effects.cost )
-          |> trySpendMana buildingSetter ( updatedBuildings, effects.manaCost )
+          |> if effects.manaCost > 0 then
+              trySpendMana buildingSetter ( updatedBuildings, effects.manaCost )
+             else
+              tryPurchase buildingSetter ( updatedBuildings, effects.cost )
 
     MapAction action ->
       let
@@ -267,12 +269,8 @@ update action model =
 
     KeyPress key ->
       let
-        updatedBattle =
-          Battle.update
-            (Battle.KeyPress key)
-            model
-            model.battle
-            |> fst
+        ( updatedBattle, _ ) =
+          Battle.update (Battle.KeyPress key) model model.battle
       in
         { model | battle = updatedBattle }
 
