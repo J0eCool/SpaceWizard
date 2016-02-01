@@ -38,11 +38,13 @@ type Action
 
 type TimedAction
   = Upgrade (Focus Model Building)
+  | ManaUpgrade (Focus Model Building)
 
 
 type alias Effect =
   { reward : List Currency.FloatBundle
   , cost : List Currency.Bundle
+  , manaCost : Int
   }
 
 
@@ -95,13 +97,13 @@ update : Action -> Model -> ( Model, Effect )
 update action model =
   let
     rewardEffect r m =
-      ( m, { reward = r, cost = [] } )
+      ( m, { reward = r, cost = [], manaCost = 0 } )
 
     costEffect c m =
-      ( m, { reward = [], cost = c } )
+      ( m, { reward = [], cost = c, manaCost = 0 } )
 
     no m =
-      ( m, { reward = [], cost = [] } )
+      ( m, { reward = [], cost = [], manaCost = 0 } )
   in
     case action of
       Tick dT ->
@@ -144,10 +146,10 @@ update action model =
 updateTick : Float -> Model -> ( Model, Effect )
 updateTick dT model =
   let
-    ( upgradedModel, cost ) =
+    ( upgradedModel, cost, manaCost ) =
       case model.heldAction of
         Nothing ->
-          ( model, [] )
+          ( model, [], 0 )
 
         Just action ->
           updateUpgrade dT action model
@@ -158,11 +160,12 @@ updateTick dT model =
     ( upgradedModel
     , { reward = reward
       , cost = cost
+      , manaCost = manaCost
       }
     )
 
 
-updateUpgrade : Float -> TimedAction -> Model -> ( Model, List Currency.Bundle )
+updateUpgrade : Float -> TimedAction -> Model -> ( Model, List Currency.Bundle, Int )
 updateUpgrade dT action model =
   let
     vel =
@@ -186,7 +189,20 @@ updateUpgrade dT action model =
           cost =
             upgradeCost amt focus model
         in
-          ( Focus.set focus upgraded tickedModel, [ cost ] )
+          ( Focus.set focus upgraded tickedModel, [ cost ], 0 )
+
+      ManaUpgrade focus ->
+        let
+          building =
+            Focus.get focus model
+
+          upgraded =
+            { building | manaLevel = building.manaLevel + amt }
+
+          cost =
+            manaUpgradeCost amt focus model
+        in
+          ( Focus.set focus upgraded tickedModel, [], cost )
 
 
 view : Signal.Address Action -> Model -> Html
@@ -213,12 +229,32 @@ viewBuilding address model building =
       , format = Format.currency
       , elem = div
       }
+
+    manaUpgradeContext =
+      { title = always "Mana Level"
+      , level = .manaLevel
+      , format = \c -> Format.int c ++ " Mana"
+      , elem = div
+      }
   in
     li
       []
       [ div [] [ text building.name ]
       , div [] [ text <| "Owned: " ++ Format.int building.count ]
-      , div [] [ text <| "+" ++ Format.floatCurrency (individualProduction building) ++ "/s" ]
+      , div
+          []
+          [ text
+              <| "+"
+              ++ Format.floatCurrency (individualProduction building)
+              ++ "/s each"
+          ]
+      , div
+          []
+          [ text
+              <| "(Total: "
+              ++ Format.floatCurrency (production building)
+              ++ "/s)"
+          ]
       , div
           []
           [ button
@@ -226,6 +262,7 @@ viewBuilding address model building =
               [ text <| "Buy (" ++ Format.currency (purchaseCost building) ++ ")" ]
           ]
       , UpgradeSlot.viewStat upgradeContext upgradeCost Upgrade forwarded focus model
+      , UpgradeSlot.viewStat manaUpgradeContext manaUpgradeCost ManaUpgrade forwarded focus model
       ]
 
 
@@ -238,8 +275,11 @@ individualProduction building =
     lv =
       2 ^ (building.level - 1)
 
+    mana =
+      building.manaLevel
+
     amount =
-      base * lv
+      base * lv * mana
   in
     ( t, amount )
 
@@ -298,6 +338,24 @@ totalUpgradeCost model =
           3.25
       in
         floor <| toFloat (snd building.upgradeCost) * (mult ^ lv) * lv / mult
+  in
+    mapSum buildingCost model.buildings
+
+
+manaUpgradeCost : Float -> Focus Model Building -> Model -> Int
+manaUpgradeCost delta focus model =
+  Cost.cost totalManaUpgradeCost delta (focus => manaLevel) model
+
+
+totalManaUpgradeCost : Model -> Int
+totalManaUpgradeCost model =
+  let
+    buildingCost building =
+      let
+        lv =
+          building.manaLevel - 1
+      in
+        floor <| toFloat building.manaCost * (0.5 * lv + 0.4 * lv * lv + 0.1 * lv * lv * lv)
   in
     mapSum buildingCost model.buildings
 

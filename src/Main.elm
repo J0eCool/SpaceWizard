@@ -246,6 +246,7 @@ update action model =
           | inventory = Inventory.applyFloatRewards effects.reward model.inventory
         }
           |> tryPurchase buildingSetter ( updatedBuildings, effects.cost )
+          |> trySpendMana buildingSetter ( updatedBuildings, effects.manaCost )
 
     MapAction action ->
       let
@@ -332,6 +333,21 @@ tryPurchase setter ( updated, cost ) model =
 
       Err _ ->
         model
+
+
+trySpendMana : (a -> Model -> Model) -> ( a, Int ) -> Model -> Model
+trySpendMana setter ( updated, cost ) model =
+  let
+    mana =
+      model.mana
+
+    success =
+      Mana.canSpend cost mana
+  in
+    if success then
+      setter updated { model | mana = Mana.trySpend cost mana mana }
+    else
+      model
 
 
 serializer : Serialize.Serializer Model
