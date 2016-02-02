@@ -45,6 +45,11 @@ width =
   baseStyle "width" sizeStr
 
 
+minWidth : Size number -> Style
+minWidth =
+  baseStyle "min-width" sizeStr
+
+
 height : Size number -> Style
 height =
   baseStyle "height" sizeStr

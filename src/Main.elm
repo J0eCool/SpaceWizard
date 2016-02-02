@@ -26,6 +26,7 @@ import Mana
 import Map
 import MaybeUtil exposing (..)
 import Serialize
+import Style exposing (..)
 
 
 type alias Model =
@@ -154,15 +155,22 @@ view address model =
 
         Just errorMessage ->
           [ text errorMessage ]
+
+    inline extra =
+      [ style ([ display InlineBlock, verticalAlign Top ] ++ extra) ]
   in
     div
       []
-      (tabs
-        ++ [ (tabData model.activeMainTab).view address model
-           , lazy Inventory.view model.inventory
-           , lazy (Mana.view <| fwd ManaAction) model.mana
-           , lazy2 (BattleStats.view <| fwd StatsAction) model.equipment model.stats
-           ]
+      ([ div
+          (inline [])
+          [ lazy Inventory.view model.inventory
+          , lazy (Mana.view <| fwd ManaAction) model.mana
+          , lazy2 (BattleStats.view <| fwd StatsAction) model.equipment model.stats
+          ]
+       , div
+          (inline [ minWidth (Px 400) ])
+          (tabs ++ [ (tabData model.activeMainTab).view address model ])
+       ]
         ++ saveErr
         ++ [ button [ onClick address ClearSave ] [ text "DELETE SAVE" ] ]
       )

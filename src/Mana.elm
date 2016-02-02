@@ -120,7 +120,7 @@ view : Signal.Address Action -> Model -> Html
 view address model =
   let
     manaBar =
-      { width = 600
+      { width = 400
       , height = 14
       , curAmount = model.current
       , maxAmount = toFloat <| capacity model
