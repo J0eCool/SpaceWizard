@@ -245,3 +245,12 @@ pixelated =
 flipHorizontal : Style
 flipHorizontal =
   ( "transform", "scaleX(-1)" )
+
+
+centeredBackgroundImage : String -> List Style
+centeredBackgroundImage url =
+  [ backgroundImage url
+  , ( "background-repeat", "no-repeat" )
+  , ( "background-position", "center" )
+  , ( "background-size", "100% 100%" )
+  ]
