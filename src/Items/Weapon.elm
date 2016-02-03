@@ -1,8 +1,9 @@
 module Items.Weapon (..) where
 
-import Html exposing (Html, div, span, h3, h4, text, button, ul, li)
 import Focus
+import Html exposing (Html, div, span, text, button, ul, li)
 import Format
+import Items.Enchant as Enchant
 import Cost
 import Currency
 import Serialize
@@ -12,6 +13,7 @@ type alias Model =
   { kind : Kind
   , material : MaterialKind
   , level : Float
+  , enchant : Enchant.Model
   , id : Int
   }
 
@@ -64,6 +66,7 @@ initWith t mat level id =
     { kind = kind
     , material = matKind
     , level = level
+    , enchant = Enchant.initWith Enchant.Damage
     , id = id
     }
 
@@ -214,7 +217,7 @@ view elem buttons weapon =
 
 serializer : Serialize.Serializer Model
 serializer =
-  Serialize.object4
+  Serialize.object5
     init
     ( "level"
     , Focus.create .level (\f w -> { w | level = f w.level })
@@ -231,4 +234,8 @@ serializer =
     ( "material"
     , Focus.create .material (\f w -> { w | material = f w.material })
     , Serialize.namedStringList allMaterialKinds
+    )
+    ( "enchant"
+    , Focus.create .enchant (\f w -> { w | enchant = f w.enchant })
+    , Enchant.serializer
     )

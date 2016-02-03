@@ -6,6 +6,7 @@ import Html.Events exposing (onClick, onMouseDown, onMouseUp, onMouseEnter, onMo
 import Cost
 import Currency
 import Items.Weapon as Weapon
+import Items.Enchant as Enchant
 import Format
 import ListUtil exposing (contains, remove, replace, mapSum)
 import Serialize
@@ -52,6 +53,7 @@ type Action
 
 type TimedAction
   = Upgrade (Focus Model Weapon.Model)
+  | UpgradeEnchant (Focus Model Enchant.Model)
 
 
 attackDamage : Model -> Int
@@ -146,28 +148,42 @@ update action model =
 
 updateTick : Float -> TimedAction -> Model -> ( Model, List Currency.Bundle )
 updateTick dT action model =
-  case action of
-    Upgrade focus ->
-      let
-        vel =
-          model.upgradeVelocity + dT
+  let
+    vel =
+      model.upgradeVelocity + dT
 
-        amt =
-          vel * dT
+    amt =
+      vel * dT
 
-        weapon =
-          get focus model
+    tickedModel =
+      { model | upgradeVelocity = vel }
+  in
+    case action of
+      Upgrade focus ->
+        let
+          weapon =
+            get focus model
 
-        upgraded =
-          { weapon | level = weapon.level + amt }
+          upgraded =
+            { weapon | level = weapon.level + amt }
 
-        upgradeCost =
-          cost amt focus model
+          upgradeCost =
+            cost amt focus model
+        in
+          ( set focus upgraded tickedModel, [ upgradeCost ] )
 
-        tickedModel =
-          { model | upgradeVelocity = vel }
-      in
-        ( set focus upgraded tickedModel, [ upgradeCost ] )
+      UpgradeEnchant focus ->
+        let
+          enchant =
+            get focus model
+
+          upgraded =
+            { enchant | level = enchant.level + amt }
+
+          --upgradeCost =
+          --  cost amt focus model
+        in
+          ( set focus upgraded tickedModel, [] )
 
 
 toCraft : Model -> Weapon.Model
@@ -225,8 +241,17 @@ viewWeapon address elem model weapon =
       , elem = li
       }
 
-    upgradeButton =
-      [ UpgradeSlot.viewStat upgradeContext cost Upgrade forwarded focus model ]
+    enchantUpgradeContext =
+      { title = \e -> "Enchant: " ++ e.kind.name
+      , level = .level
+      , format = \c -> Format.int c ++ " Mana"
+      , elem = li
+      }
+
+    upgradeButtons =
+      [ UpgradeSlot.viewStat upgradeContext cost Upgrade forwarded focus model
+      , UpgradeSlot.viewStat enchantUpgradeContext enchantCost UpgradeEnchant forwarded (focus => enchant) model
+      ]
 
     inventoryActionButtons =
       if isEquipped then
@@ -245,7 +270,7 @@ viewWeapon address elem model weapon =
         ]
 
     buttons =
-      upgradeButton ++ inventoryActionButtons
+      upgradeButtons ++ inventoryActionButtons
   in
     Weapon.view elem buttons weapon
 
@@ -309,6 +334,10 @@ level =
   create .level <| \f w -> { w | level = f w.level }
 
 
+enchant =
+  create .enchant <| \f w -> { w | enchant = f w.enchant }
+
+
 cost : Float -> Focus Model Weapon.Model -> Model -> Currency.Bundle
 cost delta weapon model =
   ( Currency.Gold
@@ -324,11 +353,26 @@ totalCost model =
 
     inventoryCost =
       mapSum Weapon.cost model.inventory
-
-    totalCost =
-      equippedCost + inventoryCost
   in
-    totalCost
+    equippedCost + inventoryCost
+
+
+enchantCost : Float -> Focus Model Enchant.Model -> Model -> Int
+enchantCost delta focus model =
+  Cost.cost totalEnchantCost delta (focus => level) model
+
+
+totalEnchantCost : Model -> Int
+totalEnchantCost model =
+  let
+    equippedCost =
+      Enchant.cost model.weapon.enchant
+
+    --inventoryCost
+    --  mapSum (\w -> Enchant.cost w.enchant) model.inventory
+  in
+    --equippedCost + inventoryCost
+    equippedCost
 
 
 serializer : Serialize.Serializer Model
