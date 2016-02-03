@@ -5,11 +5,11 @@ import Html exposing (Html, div, span, h3, h4, text, button, ul, li)
 import Html.Events exposing (onClick, onMouseDown, onMouseUp, onMouseEnter, onMouseLeave)
 import Cost
 import Currency
+import Items.Weapon as Weapon
 import Format
 import ListUtil exposing (contains, remove, replace, mapSum)
 import Serialize
 import Style exposing (..)
-import Weapon
 import Widgets
 import Widgets.UpgradeSlot as UpgradeSlot
 

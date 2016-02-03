@@ -1,4 +1,4 @@
-module Weapon (..) where
+module Items.Weapon (..) where
 
 import Focus
 import Cost
