@@ -223,6 +223,11 @@ fontStyle =
   baseStyle "font-style" fontStyleStr
 
 
+fontSize : Size number -> Style
+fontSize =
+  baseStyle "font-size" sizeStr
+
+
 
 -----------------------------------
 

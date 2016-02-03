@@ -5,6 +5,7 @@ import Html exposing (Html, div, h3, text, span, button, ul, li)
 import Html.Events exposing (onMouseDown, onMouseUp, onMouseEnter, onMouseLeave)
 import Format
 import Style exposing (..)
+import Widgets.LevelText as LevelText
 import Widgets.ProgressBar as ProgressBar
 
 
@@ -78,10 +79,13 @@ viewStat ctx cost action address focus model =
               , width <| Px 120
               ]
           ]
-          [ text
-              <| title
-              ++ ": "
-              ++ Format.float level
+          [ span
+              []
+              [ text
+                  <| title
+                  ++ ": "
+              ]
+          , LevelText.view level
           ]
       , upgradeButton 1 (action focus)
       , div [] [ ProgressBar.xpBar level ]
