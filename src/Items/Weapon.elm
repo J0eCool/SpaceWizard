@@ -1,6 +1,8 @@
 module Items.Weapon (..) where
 
+import Html exposing (Html, div, span, h3, h4, text, button, ul, li)
 import Focus
+import Format
 import Cost
 import Currency
 import Serialize
@@ -183,6 +185,31 @@ craftCost weapon =
 cost : Model -> Int
 cost wep =
   round <| Cost.base ( 2, 1, 2 ) 1.1 wep.level * wep.material.goldCost / 15
+
+
+view : (List Html -> Html) -> List Html -> Model -> Html
+view elem buttons weapon =
+  let
+    dmg =
+      damage weapon
+
+    spd =
+      speed weapon
+
+    dps =
+      toFloat dmg * spd
+  in
+    elem
+      [ div [] [ text <| name weapon ]
+      , ul
+          []
+          ([ li [] [ text <| "Damage " ++ Format.int dmg ]
+           , li [] [ text <| "Attack Speed " ++ Format.float spd ++ "/s" ]
+           , li [] [ text <| "DPS " ++ Format.float dps ]
+           ]
+            ++ buttons
+          )
+      ]
 
 
 serializer : Serialize.Serializer Model

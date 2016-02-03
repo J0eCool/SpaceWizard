@@ -247,32 +247,7 @@ viewWeapon address elem model weapon =
     buttons =
       upgradeButton ++ inventoryActionButtons
   in
-    viewBaseWeapon elem buttons weapon
-
-
-viewBaseWeapon : (List Html -> Html) -> List Html -> Weapon.Model -> Html
-viewBaseWeapon elem buttons weapon =
-  let
-    damage =
-      Weapon.damage weapon
-
-    speed =
-      Weapon.speed weapon
-
-    dps =
-      toFloat damage * speed
-  in
-    elem
-      [ div [] [ text <| Weapon.name weapon ]
-      , ul
-          []
-          ([ li [] [ text <| "Damage " ++ Format.int damage ]
-           , li [] [ text <| "Attack Speed " ++ Format.float speed ++ "/s" ]
-           , li [] [ text <| "DPS " ++ Format.float dps ]
-           ]
-            ++ buttons
-          )
-      ]
+    Weapon.view elem buttons weapon
 
 
 viewCrafting : Signal.Address Action -> Model -> Html
@@ -305,7 +280,7 @@ viewCrafting address model =
       , div
           [ inlineTop ]
           [ text "Result"
-          , viewBaseWeapon (div []) [ craftButton ] weapon
+          , Weapon.view (div []) [ craftButton ] weapon
           ]
       ]
 
