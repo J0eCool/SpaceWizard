@@ -21,6 +21,7 @@ type alias Model =
   , inventory : List Weapon.Model
   , selectedWeaponType : Weapon.Type
   , selectedWeaponMaterial : Currency.Type
+  , selectedWeaponEnchant : Enchant.Type
   , nextId : Int
   , heldAction : Maybe TimedAction
   , upgradeVelocity : Float
@@ -34,6 +35,7 @@ init =
   , inventory = []
   , selectedWeaponType = Weapon.Sword
   , selectedWeaponMaterial = Currency.Iron
+  , selectedWeaponEnchant = Enchant.Damage
   , nextId = 1
   , heldAction = Nothing
   , upgradeVelocity = 0
@@ -48,6 +50,7 @@ type Action
   | Discard Weapon.Model
   | SelectType Weapon.Type
   | SelectMaterial Currency.Type
+  | SelectEnchant Enchant.Type
   | Craft
 
 
@@ -122,6 +125,9 @@ update action model =
 
     SelectMaterial mat ->
       no { model | selectedWeaponMaterial = mat }
+
+    SelectEnchant enchant ->
+      no { model | selectedWeaponEnchant = enchant }
 
     Craft ->
       let
@@ -204,7 +210,12 @@ updateTick dT action model =
 
 toCraft : Model -> Weapon.Model
 toCraft model =
-  Weapon.initWith model.selectedWeaponType model.selectedWeaponMaterial 1 model.nextId
+  Weapon.initWith
+    model.selectedWeaponType
+    model.selectedWeaponMaterial
+    model.selectedWeaponEnchant
+    1
+    model.nextId
 
 
 inline =
@@ -311,12 +322,26 @@ viewCrafting address model =
       , div
           [ inline ]
           [ text "Type"
-          , ul [] <| List.map (radio SelectType model.selectedWeaponType) Weapon.allTypes
+          , ul []
+              <| List.map
+                  (radio SelectType model.selectedWeaponType)
+                  Weapon.allTypes
           ]
       , div
           [ inlineTop ]
           [ text "Material"
-          , ul [] <| List.map (radio SelectMaterial model.selectedWeaponMaterial) Weapon.allMaterials
+          , ul []
+              <| List.map
+                  (radio SelectMaterial model.selectedWeaponMaterial)
+                  Weapon.allMaterials
+          ]
+      , div
+          [ inlineTop ]
+          [ text "Enchant"
+          , ul []
+              <| List.map
+                  (radio SelectEnchant model.selectedWeaponEnchant)
+                  Enchant.allTypes
           ]
       , div
           [ inlineTop ]
@@ -384,11 +409,10 @@ totalEnchantCost model =
     equippedCost =
       Enchant.cost model.weapon.enchant
 
-    --inventoryCost
-    --  mapSum (\w -> Enchant.cost w.enchant) model.inventory
+    inventoryCost =
+      mapSum (\w -> Enchant.cost w.enchant) model.inventory
   in
-    --equippedCost + inventoryCost
-    equippedCost
+    equippedCost + inventoryCost
 
 
 serializer : Serialize.Serializer Model

@@ -36,7 +36,7 @@ level =
 initWith : Type -> Model
 initWith t =
   { kind = typeToKind t
-  , level = 0
+  , level = 1
   }
 
 

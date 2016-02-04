@@ -51,11 +51,11 @@ type alias MaterialKind =
 
 init : Model
 init =
-  initWith Sword Currency.Iron 1 0
+  initWith Sword Currency.Iron Enchant.Damage 1 0
 
 
-initWith : Type -> Currency.Type -> Float -> Int -> Model
-initWith t mat level id =
+initWith : Type -> Currency.Type -> Enchant.Type -> Float -> Int -> Model
+initWith t mat enchant level id =
   let
     kind =
       typeToKind t
@@ -66,7 +66,7 @@ initWith t mat level id =
     { kind = kind
     , material = matKind
     , level = level
-    , enchant = Enchant.initWith Enchant.Damage
+    , enchant = Enchant.initWith enchant
     , id = id
     }
 
