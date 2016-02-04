@@ -150,13 +150,19 @@ damage weapon =
     lv =
       weapon.level - 1
 
-    lvMod =
+    lvMult =
       1 + 0.25 * lv
 
-    matMod =
+    matMult =
       weapon.material.damage
+
+    ench =
+      Enchant.modifier weapon.enchant
+
+    enchMult =
+      1 + ench.attack
   in
-    round <| dmg * lvMod * matMod
+    round <| dmg * lvMult * matMult * enchMult
 
 
 speed : Model -> Float
@@ -165,10 +171,16 @@ speed weapon =
     spd =
       weapon.kind.attackSpeed
 
-    matMod =
+    matMult =
       weapon.material.speed
+
+    ench =
+      Enchant.modifier weapon.enchant
+
+    enchMult =
+      1 + ench.speed
   in
-    spd * matMod
+    spd * matMult * enchMult
 
 
 craftCost : Model -> List Currency.Bundle

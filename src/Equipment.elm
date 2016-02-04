@@ -242,7 +242,7 @@ viewWeapon address elem model weapon =
       }
 
     enchantUpgradeContext =
-      { title = \e -> "Enchant: " ++ e.kind.name
+      { title = \e -> e.kind.name ++ " enchant"
       , level = .level
       , format = \c -> Format.int c ++ " Mana"
       , elem = li

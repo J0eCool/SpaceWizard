@@ -7,10 +7,18 @@ import Serialize
 type Type
   = Damage
   | Speed
+  | Beast
 
 
 type alias Kind =
   { name : String
+  , modifier : Modifier
+  }
+
+
+type alias Modifier =
+  { attack : Float
+  , speed : Float
   }
 
 
@@ -36,12 +44,30 @@ allTypes : List Type
 allTypes =
   [ Damage
   , Speed
+  , Beast
   ]
 
 
 typeToKind : Type -> Kind
 typeToKind t =
-  { name = toString t }
+  let
+    base atk spd =
+      { name = toString t
+      , modifier =
+          { attack = atk
+          , speed = spd
+          }
+      }
+  in
+    case t of
+      Damage ->
+        base 0.3 0
+
+      Speed ->
+        base 0 0.2
+
+      Beast ->
+        base 0.1 0.1
 
 
 allKinds : List Kind
@@ -56,6 +82,20 @@ cost model =
       model.level - 1
   in
     floor <| 100 * (0.5 * lv + 0.45 * lv * lv + 5.0e-2 * lv * lv * lv)
+
+
+modifier : Model -> Modifier
+modifier model =
+  let
+    lv =
+      model.level
+
+    mod =
+      model.kind.modifier
+  in
+    { attack = mod.attack * lv
+    , speed = mod.speed * lv
+    }
 
 
 serializer : Serialize.Serializer Model
