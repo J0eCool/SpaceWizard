@@ -51,16 +51,7 @@ type alias Effect =
 init : Model
 init =
   { buildings =
-      [ { name = "Gold Miner"
-        , count = 0
-        , level = 1
-        , manaLevel = 1
-        , production = ( Currency.Gold, 1 )
-        , baseCost = ( Currency.Gold, 1000 )
-        , upgradeCost = ( Currency.Gold, 10000 )
-        , manaCost = 100
-        }
-      , { name = "Iron Miner"
+      [ { name = "Iron Miner"
         , count = 0
         , level = 1
         , manaLevel = 1
