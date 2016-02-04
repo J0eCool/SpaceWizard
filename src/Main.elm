@@ -234,13 +234,13 @@ update action model =
 
     EquipAction eAction ->
       let
-        equipUpdate =
+        ( updatedEquip, effects ) =
           Equipment.update eAction model.equipment
 
         equipSetter e m =
           { m | equipment = e }
       in
-        tryPurchase equipSetter equipUpdate model
+        trySpend effects equipSetter updatedEquip model
 
     BuildingAction action ->
       let
@@ -253,10 +253,7 @@ update action model =
         { model
           | inventory = Inventory.applyFloatRewards effects.reward model.inventory
         }
-          |> if effects.manaCost > 0 then
-              trySpendMana buildingSetter ( updatedBuildings, effects.manaCost )
-             else
-              tryPurchase buildingSetter ( updatedBuildings, effects.cost )
+          |> trySpend effects buildingSetter updatedBuildings
 
     MapAction action ->
       let
@@ -325,6 +322,34 @@ tabData tab =
           \address model ->
             lazy (Map.view <| Signal.forwardTo address MapAction) model.map
       }
+
+
+trySpend : { a | cost : List Currency.Bundle, manaCost : Int } -> (b -> Model -> Model) -> b -> Model -> Model
+trySpend costs setter updated model =
+  let
+    hasCost =
+      List.length costs.cost > 0
+
+    hasManaCost =
+      costs.manaCost > 0
+  in
+    if hasCost && hasManaCost then
+      let
+        canSpendMana =
+          Mana.canSpend costs.manaCost model.mana
+
+        canSpendCurrency =
+          isOk <| Inventory.spendAll costs.cost model.inventory
+      in
+        if canSpendMana && canSpendCurrency then
+          trySpendMana setter ( updated, costs.manaCost ) model
+            |> tryPurchase setter ( updated, costs.cost )
+        else
+          model
+    else if hasManaCost then
+      trySpendMana setter ( updated, costs.manaCost ) model
+    else
+      tryPurchase setter ( updated, costs.cost ) model
 
 
 tryPurchase : (a -> Model -> Model) -> ( a, List Currency.Bundle ) -> Model -> Model

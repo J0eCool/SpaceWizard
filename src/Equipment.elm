@@ -56,6 +56,12 @@ type TimedAction
   | UpgradeEnchant (Focus Model Enchant.Model)
 
 
+type alias Effect =
+  { cost : List Currency.Bundle
+  , manaCost : Int
+  }
+
+
 attackDamage : Model -> Int
 attackDamage model =
   Weapon.damage model.weapon
@@ -75,78 +81,84 @@ armor model =
     round <| 5 + arm
 
 
-update : Action -> Model -> ( Model, List Currency.Bundle )
+baseEffect : Effect
+baseEffect =
+  { cost = [], manaCost = 0 }
+
+
+no : Model -> ( Model, Effect )
+no m =
+  ( m, baseEffect )
+
+
+update : Action -> Model -> ( Model, Effect )
 update action model =
-  let
-    no m =
-      ( m, [] )
-  in
-    case action of
-      NoOp ->
+  case action of
+    NoOp ->
+      no model
+
+    Equip weapon ->
+      if model.weapon == weapon then
         no model
-
-      Equip weapon ->
-        if model.weapon == weapon then
-          no model
-        else
-          let
-            removedInv =
-              remove weapon model.inventory
-
-            addedInv =
-              removedInv ++ [ model.weapon ]
-          in
-            { model
-              | weapon = weapon
-              , inventory = addedInv
-            }
-              |> no
-
-      Discard weapon ->
-        no { model | inventory = remove weapon model.inventory }
-
-      SelectType t ->
-        no { model | selectedWeaponType = t }
-
-      SelectMaterial mat ->
-        no { model | selectedWeaponMaterial = mat }
-
-      Craft ->
+      else
         let
-          crafted =
-            toCraft model
+          removedInv =
+            remove weapon model.inventory
+
+          addedInv =
+            removedInv ++ [ model.weapon ]
         in
-          ( { model
-              | inventory = model.inventory ++ [ crafted ]
-              , nextId = model.nextId + 1
-            }
-          , Weapon.craftCost crafted
-          )
+          { model
+            | weapon = weapon
+            , inventory = addedInv
+          }
+            |> no
 
-      UpgradeAction action ->
-        case action of
-          UpgradeSlot.SetHeld act ->
-            no { model | heldAction = Just act }
+    Discard weapon ->
+      no { model | inventory = remove weapon model.inventory }
 
-          UpgradeSlot.SetHover act ->
-            no model
+    SelectType t ->
+      no { model | selectedWeaponType = t }
 
-          UpgradeSlot.Release ->
-            no { model | heldAction = Nothing, upgradeVelocity = 0 }
+    SelectMaterial mat ->
+      no { model | selectedWeaponMaterial = mat }
 
-          UpgradeSlot.MoveOut ->
-            update (UpgradeAction UpgradeSlot.Release) model
+    Craft ->
+      let
+        crafted =
+          toCraft model
+      in
+        ( { model
+            | inventory = model.inventory ++ [ crafted ]
+            , nextId = model.nextId + 1
+          }
+        , { baseEffect | cost = Weapon.craftCost crafted }
+        )
 
-      Tick dT ->
-        case model.heldAction of
-          Nothing ->
-            no model
+    UpgradeAction action ->
+      case action of
+        UpgradeSlot.SetHeld act ->
+          no { model | heldAction = Just act }
 
-          Just act ->
-            updateTick dT act model
+        UpgradeSlot.SetHover act ->
+          no model
+
+        UpgradeSlot.Release ->
+          no { model | heldAction = Nothing, upgradeVelocity = 0 }
+
+        UpgradeSlot.MoveOut ->
+          update (UpgradeAction UpgradeSlot.Release) model
+
+    Tick dT ->
+      case model.heldAction of
+        Nothing ->
+          no model
+
+        Just act ->
+          updateTick dT act model
 
 
-updateTick : Float -> TimedAction -> Model -> ( Model, List Currency.Bundle )
+updateTick : Float -> TimedAction -> Model -> ( Model, Effect )
 updateTick dT action model =
   let
     vel =
@@ -170,7 +182,9 @@ updateTick dT action model =
           upgradeCost =
             cost amt focus model
         in
-          ( set focus upgraded tickedModel, [ upgradeCost ] )
+          ( set focus upgraded tickedModel
+          , { baseEffect | cost = [ upgradeCost ] }
+          )
 
       UpgradeEnchant focus ->
         let
@@ -180,10 +194,12 @@ updateTick dT action model =
           upgraded =
             { enchant | level = enchant.level + amt }
 
-          --upgradeCost =
-          --  cost amt focus model
+          upgradeCost =
+            enchantCost amt focus model
         in
-          ( set focus upgraded tickedModel, [] )
+          ( set focus upgraded tickedModel
+          , { baseEffect | manaCost = upgradeCost }
+          )
 
 
 toCraft : Model -> Weapon.Model

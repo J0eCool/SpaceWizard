@@ -14,3 +14,13 @@ isJust maybe =
 isNothing : Maybe a -> Bool
 isNothing maybe =
   not (isJust maybe)
+
+
+isOk : Result a b -> Bool
+isOk res =
+  case res of
+    Ok _ ->
+      True
+
+    Err _ ->
+      False
